@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Upload, FileText, X, AlertCircle, CheckCircle, Lock } from 'lucide-react';
+import { Upload, FileText, X, AlertCircle, Lock } from 'lucide-react';
 import { fileService } from '../../lib/services/fileService';
 import toast from 'react-hot-toast';
 
@@ -16,15 +16,24 @@ const FileUpload: React.FC = () => {
   const uploadMutation = useMutation({
     mutationFn: ({ file, nombre }: { file: File; nombre?: string }) =>
       fileService.uploadFile(file, nombre),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['files'] });
       toast.success('Archivo subido y cifrado exitosamente');
       setSelectedFile(null);
       setCustomName('');
       setUploading(false);
     },
-    onError: (error: any) => {
-      toast.error('Error al subir el archivo: ' + (error.response?.data?.message ?? 'Error desconocido'));
+    onError: (error: unknown) => { // Cambiar 'any' por 'unknown'
+      let errorMessage = 'Error desconocido';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'response' in error) {
+        const apiError = error as { response?: { data?: { message?: string } } };
+        errorMessage = apiError.response?.data?.message ?? 'Error en la respuesta del servidor';
+      }
+      
+      toast.error('Error al subir el archivo: ' + errorMessage);
       setUploading(false);
     }
   });

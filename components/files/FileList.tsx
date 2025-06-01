@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Download, 
@@ -17,7 +17,6 @@ import { Documento } from '../../types';
 import toast from 'react-hot-toast';
 
 const FileList: React.FC = () => {
-  const [selectedFiles, setSelectedFiles] = useState<number[]>([]);
   const queryClient = useQueryClient();
 
   const { data: files = [], isLoading, error } = useQuery({
@@ -30,7 +29,6 @@ const FileList: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['files'] });
       toast.success('Archivo eliminado exitosamente');
-      setSelectedFiles([]);
     },
     onError: () => {
       toast.error('Error al eliminar el archivo');

@@ -6,11 +6,8 @@ import {
   FileText, 
   Users, 
   Eye, 
-  Download, 
-  X, 
-  Check,
+  Download,
   Search,
-  Filter,
   AlertTriangle,
   UserCheck,
   Shield
@@ -18,7 +15,6 @@ import {
 import { permissionService } from '../../lib/services/permissionService';
 import { fileService } from '../../lib/services/fileService';
 import { userService } from '../../lib/services/userService';
-import { Permiso, Documento, User } from '../../types';
 import toast from 'react-hot-toast';
 
 const PermissionManager: React.FC = () => {

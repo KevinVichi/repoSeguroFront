@@ -12,11 +12,9 @@ import {
   XCircle,
   Search,
   Download,
-  Filter,
   RefreshCw
 } from 'lucide-react';
 import { auditService } from '../../lib/services/auditService';
-import { AuditLog as AuditLogType } from '../../types';
 
 const AuditLog: React.FC = () => {
   const [dateRange, setDateRange] = useState({

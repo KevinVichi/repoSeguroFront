@@ -19,12 +19,19 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  adminOnly?: boolean;
+}
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  const navigation = [
+  const navigation: NavigationItem[] = [ // Tipado específico en lugar de 'any'
     { name: 'Mis Archivos', href: '/files', icon: FileText },
     { name: 'Subir Archivo', href: '/upload', icon: Upload },
     { name: 'Permisos', href: '/permissions', icon: Users, adminOnly: true },
@@ -97,7 +104,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 };
 
 const SidebarContent: React.FC<{
-  navigation: any[];
+  navigation: NavigationItem[];
   currentPath: string;
   onLogout: () => void;
 }> = ({ navigation, currentPath, onLogout }) => {

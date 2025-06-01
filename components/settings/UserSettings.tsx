@@ -6,16 +6,16 @@ import { useForm } from 'react-hook-form';
 import { 
   User, 
   Shield, 
-  Key, 
-  QrCode, 
+  Key,
   Copy, 
   Check,
   AlertTriangle,
   Save
 } from 'lucide-react';
+import Image from 'next/image';
 import { authService } from '../../lib/services/authService';
 import { twoFactorService } from '../../lib/services/twoFactorService';
-import { User as UserType, TwoFactorSetup } from '../../types';
+import { TwoFactorSetup } from '../../types';
 import toast from 'react-hot-toast';
 
 interface ProfileFormData {
@@ -32,7 +32,6 @@ interface PasswordFormData {
 const UserSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [twoFactorSetup, setTwoFactorSetup] = useState<TwoFactorSetup | null>(null);
-  const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -48,7 +47,7 @@ const UserSettings: React.FC = () => {
     }
   });
 
-  const { register: registerPassword, handleSubmit: handlePasswordSubmit, formState: { errors: passwordErrors }, watch, reset } = useForm<PasswordFormData>();
+  const { register: registerPassword, handleSubmit: handlePasswordSubmit, formState: { errors: passwordErrors }, watch} = useForm<PasswordFormData>();
 
   const setup2FAMutation = useMutation({
     mutationFn: twoFactorService.setup2FA,
@@ -56,7 +55,7 @@ const UserSettings: React.FC = () => {
       setTwoFactorSetup(data);
       toast.success('Configuración 2FA iniciada');
     },
-    onError: () => {
+    onError: () => { // Remover parámetro 'error' no usado
       toast.error('Error al configurar 2FA');
     }
   });
@@ -102,7 +101,7 @@ const UserSettings: React.FC = () => {
       setCopiedCode(text);
       toast.success('Copiado al portapapeles');
       setTimeout(() => setCopiedCode(null), 2000);
-    } catch (error) {
+    } catch {
       toast.error('Error al copiar');
     }
   };
@@ -385,7 +384,7 @@ const UserSettings: React.FC = () => {
   );
 };
 
-// Componente para configurar 2FA
+// Componente para configurar 2FA - CORREGIR la imagen
 const TwoFactorSetupComponent: React.FC<{
   setup: TwoFactorSetup;
   onVerify: (code: string) => void;
@@ -401,9 +400,11 @@ const TwoFactorSetupComponent: React.FC<{
           1. Escanea el código QR
         </h4>
         <div className='bg-white p-4 rounded-lg border-2 border-gray-200 inline-block'>
-          <img 
+          <Image 
             src={setup.qrCode} 
             alt='Código QR para configurar autenticación de dos factores' 
+            width={192}
+            height={192}
             className='w-48 h-48' 
           />
         </div>

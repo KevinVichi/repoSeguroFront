@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { authService } from '../../lib/services/authService';
 import toast from 'react-hot-toast';
 
@@ -25,12 +26,13 @@ const LoginForm: React.FC = () => {
       if (response.requires2FA) {
         setRequires2FA(true);
         setUserEmail(data.correo);
-        toast.info('Por favor ingresa tu código de autenticación de dos factores');
+        toast.success('Por favor ingresa tu código de autenticación de dos factores');
         return;
       }
 
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
+      
       toast.success('Inicio de sesión exitoso');
       router.push('/files');
     } catch (error) {
@@ -44,12 +46,13 @@ const LoginForm: React.FC = () => {
       <div className='max-w-md w-full space-y-8'>
         <div>
           <h2 className='mt-6 text-center text-3xl font-extrabold text-gray-900'>
-             Repositorio Seguro
+            🔐 Repositorio Seguro
           </h2>
           <p className='mt-2 text-center text-sm text-gray-600'>
             Inicia sesión en tu cuenta
           </p>
         </div>
+        
         <form className='mt-8 space-y-6' onSubmit={handleSubmit(onSubmit)}>
           <div className='rounded-md shadow-sm -space-y-px'>
             <div>
@@ -72,6 +75,7 @@ const LoginForm: React.FC = () => {
                 </p>
               )}
             </div>
+            
             <div>
               <label htmlFor='password' className='sr-only'>
                 Contraseña
@@ -91,6 +95,7 @@ const LoginForm: React.FC = () => {
                 </p>
               )}
             </div>
+            
             {requires2FA && (
               <div>
                 <label htmlFor='twoFactorCode' className='sr-only'>
@@ -126,6 +131,19 @@ const LoginForm: React.FC = () => {
             >
               {isSubmitting ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
+          </div>
+
+          {/* Nuevo enlace para registro */}
+          <div className='text-center'>
+            <p className='mt-2 text-sm text-gray-600'>
+              ¿No tienes una cuenta?{' '}
+              <Link 
+                href='/register' 
+                className='font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:underline transition ease-in-out duration-150'
+              >
+                Crear cuenta nueva
+              </Link>
+            </p>
           </div>
         </form>
       </div>
