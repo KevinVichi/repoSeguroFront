@@ -16,6 +16,16 @@ import {
 } from 'lucide-react';
 import { auditService } from '../../lib/services/auditService';
 
+interface AuditLogEntry {
+  fechaHora: string;
+  usuario: string;
+  accion: string;
+  objeto: string;
+  exitoso: boolean;
+  baseDatos: string;
+  consulta: string;
+}
+
 const AuditLog: React.FC = () => {
   const [dateRange, setDateRange] = useState({
     startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 días atrás
@@ -25,7 +35,7 @@ const AuditLog: React.FC = () => {
   const [userFilter, setUserFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: auditLogs = [], isLoading, error, refetch } = useQuery({
+  const { data: auditLogs = [], isLoading, error, refetch } = useQuery<AuditLogEntry[]>({
     queryKey: ['audit', dateRange, actionFilter, userFilter],
     queryFn: () => auditService.getAuditLogs({
       startDate: dateRange.startDate,
@@ -61,7 +71,7 @@ const AuditLog: React.FC = () => {
   const exportLogs = () => {
     const csvContent = [
       ['Fecha/Hora', 'Usuario', 'Acción', 'Objeto', 'Exitoso', 'Base de Datos'].join(','),
-      ...filteredLogs.map(log => [
+        ...filteredLogs.map((log: AuditLogEntry) => [ // ✅ Tipado explícito
         log.fechaHora,
         log.usuario,
         log.accion,
@@ -69,7 +79,7 @@ const AuditLog: React.FC = () => {
         log.exitoso ? 'Sí' : 'No',
         log.baseDatos
       ].join(','))
-    ].join('\\n');
+    ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -217,38 +227,44 @@ const AuditLog: React.FC = () => {
           <div className='grid grid-cols-1 md:grid-cols-5 gap-4'>
             {/* Fecha inicio */}
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>
+              <label htmlFor='startDate' className='block text-sm font-medium text-gray-700 mb-1'>
                 Fecha inicio
               </label>
               <input
+                id='startDate'
                 type='date'
                 value={dateRange.startDate}
                 onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                aria-label='Fecha de inicio para filtrar logs de auditoría'
                 className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
               />
             </div>
 
             {/* Fecha fin */}
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>
+              <label htmlFor='endDate' className='block text-sm font-medium text-gray-700 mb-1'>
                 Fecha fin
               </label>
               <input
+                id='endDate'
                 type='date'
                 value={dateRange.endDate}
                 onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                aria-label='Fecha de fin para filtrar logs de auditoría'
                 className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
               />
             </div>
 
             {/* Filtro de acción */}
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>
+              <label htmlFor='actionFilter' className='block text-sm font-medium text-gray-700 mb-1'>
                 Tipo de acción
               </label>
               <select
+                id='actionFilter'
                 value={actionFilter}
                 onChange={(e) => setActionFilter(e.target.value)}
+                aria-label='Filtrar logs por tipo de acción de base de datos'
                 className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
               >
                 <option value='all'>Todas las acciones</option>
@@ -261,35 +277,43 @@ const AuditLog: React.FC = () => {
 
             {/* Filtro de usuario */}
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>
+              <label htmlFor='userFilter' className='block text-sm font-medium text-gray-700 mb-1'>
                 Usuario
               </label>
               <input
+                id='userFilter'
                 type='text'
                 value={userFilter}
                 onChange={(e) => setUserFilter(e.target.value)}
                 placeholder='Filtrar por usuario'
+                aria-label='Filtrar logs por nombre de usuario específico'
                 className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
               />
             </div>
 
             {/* Búsqueda */}
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>
+              <label htmlFor='searchTerm' className='block text-sm font-medium text-gray-700 mb-1'>
                 Búsqueda
               </label>
               <div className='relative'>
                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-                  <Search className='h-4 w-4 text-gray-400' />
+                  <Search className='h-4 w-4 text-gray-400' aria-hidden='true' />
                 </div>
                 <input
+                  id='searchTerm'
                   type='text'
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder='Buscar en logs...'
+                  aria-label='Buscar texto en consultas, usuarios y objetos de la base de datos'
+                  aria-describedby='search-help'
                   className='block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
                 />
               </div>
+              <p id='search-help' className='sr-only'>
+                Busca en consultas SQL, nombres de usuario y objetos de base de datos
+              </p>
             </div>
           </div>
 
@@ -297,18 +321,20 @@ const AuditLog: React.FC = () => {
             <button
               type='button'
               onClick={() => refetch()}
+              aria-label='Actualizar logs de auditoría'
               className='inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
             >
-              <RefreshCw className='h-4 w-4 mr-1' />
+              <RefreshCw className='h-4 w-4 mr-1' aria-hidden='true' />
               Actualizar
             </button>
 
             <button
               type='button'
               onClick={exportLogs}
+              aria-label='Exportar logs de auditoría a archivo CSV'
               className='inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
             >
-              <Download className='h-4 w-4 mr-1' />
+              <Download className='h-4 w-4 mr-1' aria-hidden='true' />
               Exportar CSV
             </button>
           </div>
@@ -337,7 +363,7 @@ const AuditLog: React.FC = () => {
             </p>
           </div>
         ) : (
-          <ul className='divide-y divide-gray-200'>
+          <ul className='divide-y divide-gray-200' role='list'>
             {filteredLogs.map((log, index) => (
               <li key={index}>
                 <div className='px-4 py-4 sm:px-6'>
@@ -361,17 +387,18 @@ const AuditLog: React.FC = () => {
                           )}
                         </div>
                         <div className='mt-2 flex items-center text-sm text-gray-500'>
-                          <Calendar className='h-4 w-4 mr-1' />
+                          <Calendar className='h-4 w-4 mr-1' aria-hidden='true' />
                           <span>{new Date(log.fechaHora).toLocaleString('es-ES')}</span>
-                          <span className='mx-2'></span>
-                          <User className='h-4 w-4 mr-1' />
+                          <span className='mx-2' aria-hidden='true'>•</span>
+                          <User className='h-4 w-4 mr-1' aria-hidden='true' />
                           <span>{log.usuario}</span>
-                          <span className='mx-2'></span>
-                          <Database className='h-4 w-4 mr-1' />
+                          <span className='mx-2' aria-hidden='true'>•</span>
+                          <Database className='h-4 w-4 mr-1' aria-hidden='true' />
                           <span>{log.baseDatos}</span>
                         </div>
                         {log.consulta && (
                           <div className='mt-2 text-xs text-gray-400 font-mono bg-gray-50 p-2 rounded'>
+                            <span className='sr-only'>Consulta SQL ejecutada: </span>
                             {log.consulta.length > 100 ? `${log.consulta.substring(0, 100)}...` : log.consulta}
                           </div>
                         )}

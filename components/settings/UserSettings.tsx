@@ -47,7 +47,7 @@ const UserSettings: React.FC = () => {
     }
   });
 
-  const { register: registerPassword, handleSubmit: handlePasswordSubmit, formState: { errors: passwordErrors }, watch} = useForm<PasswordFormData>();
+  const { register: registerPassword, handleSubmit: handlePasswordSubmit, formState: { errors: passwordErrors }, watch } = useForm<PasswordFormData>();
 
   const setup2FAMutation = useMutation({
     mutationFn: twoFactorService.setup2FA,
@@ -55,7 +55,7 @@ const UserSettings: React.FC = () => {
       setTwoFactorSetup(data);
       toast.success('Configuración 2FA iniciada');
     },
-    onError: () => { // Remover parámetro 'error' no usado
+    onError: () => {
       toast.error('Error al configurar 2FA');
     }
   });
@@ -133,23 +133,26 @@ const UserSettings: React.FC = () => {
 
       {/* Tabs */}
       <div className='border-b border-gray-200 mb-6'>
-        <nav className='-mb-px flex space-x-8' role='tablist'>
+        <nav className='-mb-px flex space-x-8' role='tablist' aria-label='Configuración del usuario'>
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                type='button'
                 onClick={() => setActiveTab(tab.id)}
                 role='tab'
-                aria-selected={activeTab === tab.id}
+                aria-selected={isActive ? "true" : "false"}
                 aria-controls={`${tab.id}-panel`}
+                tabIndex={isActive ? 0 : -1}
                 className={`${
-                  activeTab === tab.id
+                  isActive
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center`}
+                } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
               >
-                <Icon className='h-5 w-5 mr-2' />
+                <Icon className='h-5 w-5 mr-2' aria-hidden='true' />
                 {tab.name}
               </button>
             );
@@ -160,7 +163,7 @@ const UserSettings: React.FC = () => {
       {/* Contenido de tabs */}
       <div className='bg-white shadow rounded-lg'>
         {activeTab === 'profile' && (
-          <div id='profile-panel' role='tabpanel' className='px-4 py-5 sm:p-6'>
+          <div id='profile-panel' role='tabpanel' aria-labelledby='profile-tab' className='px-4 py-5 sm:p-6'>
             <h3 className='text-lg leading-6 font-medium text-gray-900 mb-4'>
               Información del Perfil
             </h3>
@@ -235,7 +238,7 @@ const UserSettings: React.FC = () => {
         )}
 
         {activeTab === 'security' && (
-          <div id='security-panel' role='tabpanel' className='px-4 py-5 sm:p-6'>
+          <div id='security-panel' role='tabpanel' aria-labelledby='security-tab' className='px-4 py-5 sm:p-6'>
             <h3 className='text-lg leading-6 font-medium text-gray-900 mb-4'>
               Autenticación de Dos Factores (2FA)
             </h3>
@@ -297,7 +300,7 @@ const UserSettings: React.FC = () => {
         )}
 
         {activeTab === 'password' && (
-          <div id='password-panel' role='tabpanel' className='px-4 py-5 sm:p-6'>
+          <div id='password-panel' role='tabpanel' aria-labelledby='password-tab' className='px-4 py-5 sm:p-6'>
             <h3 className='text-lg leading-6 font-medium text-gray-900 mb-4'>
               Cambiar Contraseña
             </h3>
@@ -384,7 +387,7 @@ const UserSettings: React.FC = () => {
   );
 };
 
-// Componente para configurar 2FA - CORREGIR la imagen
+// Componente para configurar 2FA
 const TwoFactorSetupComponent: React.FC<{
   setup: TwoFactorSetup;
   onVerify: (code: string) => void;

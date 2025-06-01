@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// Removidos: QueryClient, QueryClientProvider, Toaster
+import { QueryProvider } from '../components/providers/QueryProvider';
+import { Toaster } from 'react-hot-toast';
 
 const geist = Geist({
   variable: "--font-geist-sans",
@@ -26,7 +27,31 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${geist.variable} ${geistMono.variable} antialiased`}>
-        {children}
+        <QueryProvider>
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+              success: {
+                duration: 3000,
+                style: {
+                  background: '#10B981',
+                },
+              },
+              error: {
+                duration: 5000,
+                style: {
+                  background: '#EF4444',
+                },
+              },
+            }}
+          />
+        </QueryProvider>
       </body>
     </html>
   );
