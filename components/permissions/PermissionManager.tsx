@@ -10,7 +10,8 @@ import {
   Search,
   AlertTriangle,
   UserCheck,
-  Shield
+  Shield,
+  User
 } from 'lucide-react';
 import { permissionService } from '../../lib/services/permissionService';
 import { fileService } from '../../lib/services/fileService';
@@ -18,12 +19,11 @@ import { userService } from '../../lib/services/userService';
 import toast from 'react-hot-toast';
 
 const PermissionManager: React.FC = () => {
-  const [selectedDocument, setSelectedDocument] = useState<number | null>(null);
-  const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'documents' | 'users'>('all');
+  const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
+  // ✅ QUERIES PRINCIPALES
   const { data: permissions = [], isLoading: permissionsLoading } = useQuery({
     queryKey: ['permissions'],
     queryFn: permissionService.getPermissions
@@ -34,11 +34,17 @@ const PermissionManager: React.FC = () => {
     queryFn: fileService.getFiles
   });
 
-  const { data: users = [], isLoading: usersLoading } = useQuery({
+  const { data: allUsers = [], isLoading: usersLoading } = useQuery({
     queryKey: ['users'],
     queryFn: userService.getUsers
   });
 
+  // ✅ FILTRAR SOLO USUARIOS NORMALES (no admin)
+  const normalUsers = Array.isArray(allUsers) 
+  ? allUsers.filter(user => user.Rol !== 'admin')
+  : [];
+
+  // ✅ MUTATION PARA ACTUALIZAR PERMISOS
   const updatePermissionMutation = useMutation({
     mutationFn: ({ documentoId, usuarioId, puedeVer, puedeDescargar }: {
       documentoId: number;
@@ -55,33 +61,69 @@ const PermissionManager: React.FC = () => {
     }
   });
 
-  const handlePermissionUpdate = (documentoId: number, usuarioId: number, puedeVer: boolean, puedeDescargar: boolean) => {
-    updatePermissionMutation.mutate({ documentoId, usuarioId, puedeVer, puedeDescargar });
+  // ✅ FUNCIÓN PARA OBTENER PERMISOS DE UN USUARIO ESPECÍFICO
+  const getUserPermissions = (usuarioId: number) => {
+    return documents.map(documento => {
+      const permiso = permissions.find(p => 
+        p.UsuarioID === usuarioId && p.DocumentoID === documento.DocumentoID
+      );
+      
+      return {
+        documento,
+        puedeVer: permiso?.PuedeVer || false,
+        puedeDescargar: permiso?.PuedeDescargar || false,
+        existePermiso: !!permiso
+      };
+    });
   };
 
-  const filteredPermissions = permissions.filter(permission => {
-    const matchesSearch = 
-      permission.NombreDocumento?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      permission.NombreUsuario?.toLowerCase().includes(searchTerm.toLowerCase());
+  // ✅ FUNCIÓN PARA MANEJAR CAMBIOS DE PERMISOS
+  const handlePermissionChange = (usuarioId: number, documentoId: number, tipo: 'ver' | 'descargar', valor: boolean) => {
+    const currentPermissions = getUserPermissions(usuarioId);
+    const currentDoc = currentPermissions.find(p => p.documento.DocumentoID === documentoId);
     
-    if (filterType === 'documents' && selectedDocument) {
-      return permission.DocumentoID === selectedDocument && matchesSearch;
-    }
-    if (filterType === 'users' && selectedUser) {
-      return permission.UsuarioID === selectedUser && matchesSearch;
-    }
-    return matchesSearch;
-  });
-
-  const getPermissionStats = () => {
-    const total = permissions.length;
-    const canView = permissions.filter(p => p.PuedeVer).length;
-    const canDownload = permissions.filter(p => p.PuedeDescargar).length;
+    const puedeVer = tipo === 'ver' ? valor : (currentDoc?.puedeVer || false);
+    const puedeDescargar = tipo === 'descargar' ? valor : (currentDoc?.puedeDescargar || false);
     
-    return { total, canView, canDownload };
+    // Si quita el permiso de ver, también quitar el de descargar
+    if (tipo === 'ver' && !valor) {
+      updatePermissionMutation.mutate({ 
+        documentoId, 
+        usuarioId, 
+        puedeVer: false, 
+        puedeDescargar: false 
+      });
+    } else {
+      updatePermissionMutation.mutate({ 
+        documentoId, 
+        usuarioId, 
+        puedeVer, 
+        puedeDescargar 
+      });
+    }
   };
 
-  const stats = getPermissionStats();
+  // ✅ FILTRAR USUARIOS POR BÚSQUEDA
+  const filteredUsers = normalUsers.filter(user => 
+    user.Nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.Correo.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // ✅ OBTENER ESTADÍSTICAS
+  const getStats = () => {
+    const totalUsers = normalUsers.length;
+    const usersWithAccess = normalUsers.filter(user => 
+      permissions.some(p => p.UsuarioID === user.UsuarioID && p.PuedeVer)
+    ).length;
+    const totalDocuments = documents.length;
+    const documentsShared = documents.filter(doc => 
+      permissions.some(p => p.DocumentoID === doc.DocumentoID && p.PuedeVer)
+    ).length;
+
+    return { totalUsers, usersWithAccess, totalDocuments, documentsShared };
+  };
+
+  const stats = getStats();
 
   if (permissionsLoading || documentsLoading || usersLoading) {
     return (
@@ -93,28 +135,29 @@ const PermissionManager: React.FC = () => {
 
   return (
     <div className='max-w-7xl mx-auto'>
+      {/* HEADER */}
       <div className='mb-8'>
-        <h1 className='text-2xl font-semibold text-gray-900'>Gestión de Permisos</h1>
+        <h1 className='text-2xl font-semibold text-gray-900'>Gestión de Permisos por Usuario</h1>
         <p className='mt-2 text-sm text-gray-700'>
-          Administra quién puede ver y descargar cada documento
+          Administra qué documentos puede ver y descargar cada usuario
         </p>
       </div>
 
-      {/* Estadísticas */}
+      {/* ESTADÍSTICAS */}
       <div className='grid grid-cols-1 md:grid-cols-4 gap-4 mb-6'>
         <div className='bg-white overflow-hidden shadow rounded-lg'>
           <div className='p-5'>
             <div className='flex items-center'>
               <div className='flex-shrink-0'>
-                <Shield className='h-6 w-6 text-gray-400' />
+                <Users className='h-6 w-6 text-blue-400' />
               </div>
               <div className='ml-5 w-0 flex-1'>
                 <dl>
                   <dt className='text-sm font-medium text-gray-500 truncate'>
-                    Total Permisos
+                    Usuarios Normales
                   </dt>
                   <dd className='text-lg font-medium text-gray-900'>
-                    {stats.total}
+                    {stats.totalUsers}
                   </dd>
                 </dl>
               </div>
@@ -126,35 +169,15 @@ const PermissionManager: React.FC = () => {
           <div className='p-5'>
             <div className='flex items-center'>
               <div className='flex-shrink-0'>
-                <Eye className='h-6 w-6 text-blue-400' />
+                <UserCheck className='h-6 w-6 text-green-400' />
               </div>
               <div className='ml-5 w-0 flex-1'>
                 <dl>
                   <dt className='text-sm font-medium text-gray-500 truncate'>
-                    Pueden Ver
+                    Con Acceso
                   </dt>
                   <dd className='text-lg font-medium text-gray-900'>
-                    {stats.canView}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white overflow-hidden shadow rounded-lg'>
-          <div className='p-5'>
-            <div className='flex items-center'>
-              <div className='flex-shrink-0'>
-                <Download className='h-6 w-6 text-green-400' />
-              </div>
-              <div className='ml-5 w-0 flex-1'>
-                <dl>
-                  <dt className='text-sm font-medium text-gray-500 truncate'>
-                    Pueden Descargar
-                  </dt>
-                  <dd className='text-lg font-medium text-gray-900'>
-                    {stats.canDownload}
+                    {stats.usersWithAccess}
                   </dd>
                 </dl>
               </div>
@@ -174,7 +197,27 @@ const PermissionManager: React.FC = () => {
                     Documentos
                   </dt>
                   <dd className='text-lg font-medium text-gray-900'>
-                    {documents.length}
+                    {stats.totalDocuments}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className='bg-white overflow-hidden shadow rounded-lg'>
+          <div className='p-5'>
+            <div className='flex items-center'>
+              <div className='flex-shrink-0'>
+                <Shield className='h-6 w-6 text-orange-400' />
+              </div>
+              <div className='ml-5 w-0 flex-1'>
+                <dl>
+                  <dt className='text-sm font-medium text-gray-500 truncate'>
+                    Docs Compartidos
+                  </dt>
+                  <dd className='text-lg font-medium text-gray-900'>
+                    {stats.documentsShared}
                   </dd>
                 </dl>
               </div>
@@ -183,11 +226,10 @@ const PermissionManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Filtros y búsqueda */}
+      {/* BUSCADOR */}
       <div className='bg-white shadow rounded-lg mb-6'>
         <div className='px-4 py-5 sm:p-6'>
-          <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-            {/* Búsqueda */}
+          <div className='max-w-lg'>
             <div className='relative'>
               <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                 <Search className='h-5 w-5 text-gray-400' />
@@ -197,174 +239,154 @@ const PermissionManager: React.FC = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className='block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
-                placeholder='Buscar documento o usuario...'
+                placeholder='Buscar usuario por nombre o email...'
               />
             </div>
-
-            {/* Filtro por tipo */}
-            <div>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value as 'all' | 'documents' | 'users')}
-                className='block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
-              >
-                <option value='all'>Todos los permisos</option>
-                <option value='documents'>Por documento</option>
-                <option value='users'>Por usuario</option>
-              </select>
-            </div>
-
-            {/* Filtro por documento */}
-            {filterType === 'documents' && (
-              <div>
-                <select
-                  value={selectedDocument ?? ''}
-                  onChange={(e) => setSelectedDocument(e.target.value ? Number(e.target.value) : null)}
-                  className='block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
-                >
-                  <option value=''>Seleccionar documento</option>
-                  {documents.map((doc) => (
-                    <option key={doc.DocumentoID} value={doc.DocumentoID}>
-                      {doc.Nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Filtro por usuario */}
-            {filterType === 'users' && (
-              <div>
-                <select
-                  value={selectedUser ?? ''}
-                  onChange={(e) => setSelectedUser(e.target.value ? Number(e.target.value) : null)}
-                  className='block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
-                >
-                  <option value=''>Seleccionar usuario</option>
-                  {users.map((user) => (
-                    <option key={user.UsuarioID} value={user.UsuarioID}>
-                      {user.Nombre} ({user.Correo})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Tabla de permisos */}
-      <div className='bg-white shadow overflow-hidden sm:rounded-md'>
-        <div className='px-4 py-5 sm:px-6 border-b border-gray-200'>
-          <h3 className='text-lg leading-6 font-medium text-gray-900'>
-            Permisos de Documentos
-          </h3>
-          <p className='mt-1 max-w-2xl text-sm text-gray-500'>
-            {filteredPermissions.length} de {permissions.length} permisos mostrados
-          </p>
-        </div>
-
-        {filteredPermissions.length === 0 ? (
+      {/* LISTA DE USUARIOS */}
+      <div className='space-y-6'>
+        {filteredUsers.length === 0 ? (
           <div className='text-center py-12'>
             <AlertTriangle className='mx-auto h-12 w-12 text-gray-400' />
             <h3 className='mt-2 text-sm font-medium text-gray-900'>
-              No se encontraron permisos
+              No se encontraron usuarios
             </h3>
             <p className='mt-1 text-sm text-gray-500'>
-              Ajusta los filtros de búsqueda para ver más resultados.
+              Ajusta la búsqueda o verifica que existan usuarios normales.
             </p>
           </div>
         ) : (
-          <ul className='divide-y divide-gray-200'>
-            {filteredPermissions.map((permiso) => (
-              <li key={`${permiso.DocumentoID}-${permiso.UsuarioID}`}>
-                <div className='px-4 py-4 sm:px-6'>
+          filteredUsers.map((user) => {
+            const userPermissions = getUserPermissions(user.UsuarioID);
+            const documentsWithAccess = userPermissions.filter(p => p.puedeVer).length;
+            const documentsCanDownload = userPermissions.filter(p => p.puedeDescargar).length;
+
+            return (
+              <div key={user.UsuarioID} className='bg-white shadow rounded-lg'>
+                {/* HEADER DEL USUARIO */}
+                <div className='px-6 py-4 border-b border-gray-200'>
                   <div className='flex items-center justify-between'>
-                    <div className='flex items-center min-w-0 flex-1'>
+                    <div className='flex items-center'>
                       <div className='flex-shrink-0'>
-                        <FileText className='h-8 w-8 text-gray-400' />
+                        <User className='h-8 w-8 text-gray-400' />
                       </div>
-                      <div className='min-w-0 flex-1 ml-4'>
-                        <div className='flex items-center'>
-                          <p className='text-sm font-medium text-gray-900 truncate'>
-                            {permiso.NombreDocumento}
-                          </p>
-                        </div>
-                        <div className='mt-2 flex items-center text-sm text-gray-500'>
-                          <UserCheck className='h-4 w-4 mr-1' />
-                          <span>{permiso.NombreUsuario}</span>
-                          <span className='mx-2'></span>
-                          <span>Asignado: {new Date(permiso.FechaAsignado).toLocaleDateString('es-ES')}</span>
-                        </div>
+                      <div className='ml-4'>
+                        <h3 className='text-lg font-medium text-gray-900'>
+                          {user.Nombre}
+                        </h3>
+                        <p className='text-sm text-gray-500'>
+                          {user.Correo}
+                        </p>
                       </div>
                     </div>
-                    
-                    <div className='flex items-center space-x-4'>
-                      {/* Toggle Ver */}
-                      <div className='flex items-center'>
-                        <label className='text-sm text-gray-700 mr-2'>Ver:</label>
-                        <button
-                          type='button'
-                          onClick={() => handlePermissionUpdate(
-                            permiso.DocumentoID, 
-                            permiso.UsuarioID, 
-                            !permiso.PuedeVer, 
-                            permiso.PuedeDescargar
-                          )}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            permiso.PuedeVer ? 'bg-indigo-600' : 'bg-gray-200'
-                          }`}
-                        >
-                          <span className='sr-only'>Cambiar permiso de ver</span>
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              permiso.PuedeVer ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </div>
-
-                      {/* Toggle Descargar */}
-                      <div className='flex items-center'>
-                        <label className='text-sm text-gray-700 mr-2'>Descargar:</label>
-                        <button
-                          type='button'
-                          onClick={() => handlePermissionUpdate(
-                            permiso.DocumentoID, 
-                            permiso.UsuarioID, 
-                            permiso.PuedeVer, 
-                            !permiso.PuedeDescargar
-                          )}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            permiso.PuedeDescargar ? 'bg-green-600' : 'bg-gray-200'
-                          }`}
-                        >
-                          <span className='sr-only'>Cambiar permiso de descarga</span>
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              permiso.PuedeDescargar ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </div>
+                    <div className='flex items-center space-x-4 text-sm text-gray-500'>
+                      <span className='flex items-center'>
+                        <Eye className='h-4 w-4 mr-1' />
+                        Puede ver: {documentsWithAccess}
+                      </span>
+                      <span className='flex items-center'>
+                        <Download className='h-4 w-4 mr-1' />
+                        Puede descargar: {documentsCanDownload}
+                      </span>
                     </div>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
 
-      {/* Botón para crear nuevos permisos */}
-      <div className='mt-6'>
-        <button
-          type='button'
-          className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-        >
-          <Users className='h-4 w-4 mr-2' />
-          Asignar nuevos permisos
-        </button>
+                {/* TABLA DE DOCUMENTOS Y PERMISOS */}
+                <div className='px-6 py-4'>
+                  {documents.length === 0 ? (
+                    <p className='text-gray-500 text-center py-4'>No hay documentos disponibles</p>
+                  ) : (
+                    <div className='overflow-x-auto'>
+                      <table className='min-w-full divide-y divide-gray-200'>
+                        <thead className='bg-gray-50'>
+                          <tr>
+                            <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                              Documento
+                            </th>
+                            <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                              Puede Ver
+                            </th>
+                            <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                              Puede Descargar
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className='bg-white divide-y divide-gray-200'>
+                          {userPermissions.map((permissionData) => (
+                            <tr key={permissionData.documento.DocumentoID}>
+                              <td className='px-6 py-4 whitespace-nowrap'>
+                                <div className='flex items-center'>
+                                  <FileText className='h-5 w-5 text-gray-400 mr-3' />
+                                  <div>
+                                    <div className='text-sm font-medium text-gray-900'>
+                                      {permissionData.documento.Nombre}
+                                    </div>
+                                    <div className='text-sm text-gray-500'>
+                                      Subido: {new Date(permissionData.documento.FechaSubida).toLocaleDateString('es-ES')}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className='px-6 py-4 whitespace-nowrap text-center'>
+                                <button
+                                  type='button'
+                                  onClick={() => handlePermissionChange(
+                                    user.UsuarioID,
+                                    permissionData.documento.DocumentoID,
+                                    'ver',
+                                    !permissionData.puedeVer
+                                  )}
+                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                    permissionData.puedeVer ? 'bg-indigo-600' : 'bg-gray-200'
+                                  }`}
+                                >
+                                  <span className='sr-only'>Cambiar permiso de ver</span>
+                                  <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                      permissionData.puedeVer ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                  />
+                                </button>
+                              </td>
+                              <td className='px-6 py-4 whitespace-nowrap text-center'>
+                                <button
+                                  type='button'
+                                  onClick={() => handlePermissionChange(
+                                    user.UsuarioID,
+                                    permissionData.documento.DocumentoID,
+                                    'descargar',
+                                    !permissionData.puedeDescargar
+                                  )}
+                                  disabled={!permissionData.puedeVer} // No puede descargar si no puede ver
+                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                    permissionData.puedeDescargar && permissionData.puedeVer 
+                                      ? 'bg-green-600' 
+                                      : 'bg-gray-200'
+                                  } ${!permissionData.puedeVer ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  <span className='sr-only'>Cambiar permiso de descarga</span>
+                                  <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                      permissionData.puedeDescargar && permissionData.puedeVer ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                  />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

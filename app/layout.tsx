@@ -1,23 +1,11 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { QueryProvider } from '../components/providers/QueryProvider';
+'use client';
+
+import { AuthProvider } from '../hooks/useAuth';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
+import './globals.css'; // Si tienes estilos globales
 
-const geist = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Repositorio Seguro",
-  description: "Sistema de gestión de documentos seguro",
-};
+const queryClient = new QueryClient();
 
 export default function RootLayout({
   children,
@@ -26,32 +14,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={`${geist.variable} ${geistMono.variable} antialiased`}>
-        <QueryProvider>
-          {children}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-              success: {
-                duration: 3000,
+      <body>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider> {/* ✅ ENVOLVER TODA LA APP */}
+            {children}
+            <Toaster 
+              position="top-right" 
+              toastOptions={{
+                duration: 4000,
                 style: {
-                  background: '#10B981',
+                  background: '#363636',
+                  color: '#fff',
                 },
-              },
-              error: {
-                duration: 5000,
-                style: {
-                  background: '#EF4444',
-                },
-              },
-            }}
-          />
-        </QueryProvider>
+              }}
+            />
+          </AuthProvider>
+        </QueryClientProvider>
       </body>
     </html>
   );

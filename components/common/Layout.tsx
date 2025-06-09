@@ -7,13 +7,12 @@ import {
   FileText,
   Upload,
   Users,
-  Shield,
   Settings,
   LogOut,
   Menu,
-  X 
+  X,
+  Trash2 // ✅ AGREGAR ICONO PARA DOCUMENTOS ELIMINADOS
 } from 'lucide-react';
-import { authService } from '../../lib/services/authService';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -31,16 +30,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  const navigation: NavigationItem[] = [ // Tipado específico en lugar de 'any'
+  // ✅ LISTA COMPLETA DE NAVEGACIÓN (INCLUYENDO DOCUMENTOS ELIMINADOS)
+  const navigation: NavigationItem[] = [ 
     { name: 'Mis Archivos', href: '/files', icon: FileText },
-    { name: 'Subir Archivo', href: '/upload', icon: Upload },
+    { name: 'Subir Archivo', href: '/upload', icon: Upload, adminOnly: true },
+    { name: 'Documentos Eliminados', href: '/deleted', icon: Trash2, adminOnly: true }, // ✅ AGREGADO
     { name: 'Permisos', href: '/permissions', icon: Users, adminOnly: true },
-    { name: 'Auditoría', href: '/audit', icon: Shield, adminOnly: true },
-    { name: 'Configuración', href: '/settings', icon: Settings },
+    { name: 'Configuración', href: '/settings', icon: Settings }, // ✅ MANTENIDO
   ];
 
   const handleLogout = () => {
-    authService.logout();
     router.push('/login');
   };
 
@@ -103,6 +102,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
 };
 
+// ✅ COMPONENTE SIDEBAR CORREGIDO - USA EL ARRAY navigation
 const SidebarContent: React.FC<{
   navigation: NavigationItem[];
   currentPath: string;
@@ -115,19 +115,22 @@ const SidebarContent: React.FC<{
           <h1 className='text-lg font-semibold text-gray-900'>🔒 Repositorio Seguro</h1>
         </div>
         <nav className='mt-5 flex-1 px-2 bg-white space-y-1'>
+          {/* ✅ USAR EL ARRAY navigation EN LUGAR DE ENLACES HARDCODEADOS */}
           {navigation.map((item) => {
             const Icon = item.icon;
+            const isActive = currentPath === item.href;
+            
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`${
-                  currentPath === item.href
-                    ? 'bg-indigo-100 text-indigo-900'
+                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-indigo-100 text-indigo-700'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                }`}
               >
-                <Icon className='mr-3 h-6 w-6' />
+                <Icon className='mr-3 h-5 w-5' />
                 {item.name}
               </Link>
             );

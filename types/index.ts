@@ -34,18 +34,6 @@ export interface Permiso {
   NombreUsuario?: string;
 }
 
-export interface AuditLog {
-  fechaHora: string;
-  accion: string;
-  exitoso: boolean;
-  baseDatos: string;
-  esquema: string;
-  objeto: string;
-  consulta: string;
-  usuario: string;
-  aplicacion: string;
-}
-
 export interface TwoFactorSetup {
   qrCode: string;
   secret: string;
