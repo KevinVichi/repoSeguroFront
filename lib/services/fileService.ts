@@ -130,4 +130,17 @@ export const fileService = {
     }
   },
 
+  // En fileService.ts - agregar este método
+  async validateDecryptionKey(documentoId: number, userKey: string): Promise<Blob> {
+    try {
+      const response = await api.post(`/pdfs/${documentoId}/decrypt`, 
+        { userKey },
+        { responseType: 'blob' }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error validando clave:', getErrorMessage(error));
+      throw error;
+    }
+  },
 };

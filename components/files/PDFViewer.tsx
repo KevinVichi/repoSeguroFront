@@ -35,22 +35,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     
     try {
       // ✅ LLAMAR ENDPOINT DE DESCIFRADO
-      const response = await fetch(`/api/validacion/${documento.DocumentoID}/decrypt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ userKey: userKey.trim() })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message ?? 'Error al descifrar archivo');
-      }
-
-      // ✅ CREAR BLOB URL Y ABRIR PDF
-      const blob = await response.blob();
+      const blob = await fileService.validateDecryptionKey(documento.DocumentoID, userKey.trim());
       const url = URL.createObjectURL(blob);
       
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -191,7 +176,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                   onChange={(e) => setUserKey(e.target.value)}
                   placeholder='Ej: A1B2-C3D4-E5F6-G7H8'
                   className='w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-center font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-                  maxLength={50}
+                  maxLength={100}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       handleDecryptAndView();

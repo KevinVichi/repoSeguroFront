@@ -75,7 +75,13 @@ const FileList: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      toast.success('Archivo descargado exitosamente');
+      
+      // 🔐 MOSTRAR MENSAJE SOBRE LA CONTRASEÑA
+      toast.success(
+        'PDF descargado. Está protegido con contraseña. ' +
+        'Usa la clave cifrada proporcionada por el administrador para abrirlo.',
+        { duration: 6000 }
+      );
     } catch (error) {
       toast.error('Error al descargar el archivo');
       console.error('Download error:', error);
@@ -274,7 +280,7 @@ const FileList: React.FC = () => {
                           type='button'
                           onClick={() => handleDownload(documento)}
                           className='inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                          title='Descargar archivo'
+                          title='Descargar PDF protegido con contraseña'
                         >
                           <Download className='h-4 w-4' />
                         </button>
@@ -289,6 +295,25 @@ const FileList: React.FC = () => {
                           title='Eliminar archivo'
                         >
                           <Trash2 className='h-4 w-4' />
+                        </button>
+                      )}
+                      
+                      {/* ✅ BOTÓN COPIAR CLAVE - SOLO ADMIN */}
+                      {user.Rol === 'admin' && (
+                        <button
+                          type='button'
+                          onClick={() => {
+                            if (documento.ClaveUsuarioCifrada) {
+                              navigator.clipboard.writeText(documento.ClaveUsuarioCifrada);
+                              toast.success('Clave cifrada copiada al portapapeles');
+                            } else {
+                              toast.error('No hay clave de descifrado disponible');
+                            }
+                          }}
+                          className='inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-gray-400 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                          title='Copiar clave cifrada de descifrado'
+                        >
+                          <Lock className='h-4 w-4' />
                         </button>
                       )}
                     </div>
