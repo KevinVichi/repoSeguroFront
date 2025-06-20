@@ -130,16 +130,64 @@ export const fileService = {
     }
   },
 
-  // En fileService.ts - agregar este método
-  async validateDecryptionKey(documentoId: number, userKey: string): Promise<Blob> {
+  // ✅ ACTUALIZAR MÉTODO viewDocumentWithKey
+  async viewDocumentWithKey(documentoId: number, userKey: string): Promise<Blob> {
     try {
-      const response = await api.post(`/pdfs/${documentoId}/decrypt`, 
+      const response = await api.post(`/pdfs/${documentoId}/viewblock`, // ✅ USAR viewblock
         { userKey },
-        { responseType: 'blob' }
+        { 
+          responseType: 'blob',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
       );
       return response.data;
     } catch (error) {
+      console.error('❌ Error visualizando documento:', getErrorMessage(error));
+      throw error;
+    }
+  },
+
+  // ✅ ACTUALIZAR MÉTODO downloadDocumentWithKey  
+  async downloadDocumentWithKey(documentoId: number, userKey: string): Promise<Blob> {
+    try {
+      const response = await api.post(`/pdfs/${documentoId}/downloadBlock`, // ✅ USAR downloadBlock
+        { userKey },
+        { 
+          responseType: 'blob',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error descargando documento:', getErrorMessage(error));
+      throw error;
+    }
+  },
+
+  // ✅ ACTUALIZAR EL MÉTODO validateDecryptionKey PARA USAR EL ENDPOINT CORRECTO
+  async validateDecryptionKey(documentoId: number, userKey: string): Promise<Blob> {
+    try {
+      // Usar el nuevo endpoint de viewblock
+      return await this.viewDocumentWithKey(documentoId, userKey);
+    } catch (error) {
       console.error('❌ Error validando clave:', getErrorMessage(error));
+      throw error;
+    }
+  },
+
+  // ✅ MÉTODO ADICIONAL: Ver documento sin clave (para archivos no cifrados)
+  async viewDocument(documentoId: number): Promise<Blob> {
+    try {
+      const response = await api.get(`/pdfs/${documentoId}/view`, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error visualizando documento:', getErrorMessage(error));
       throw error;
     }
   },

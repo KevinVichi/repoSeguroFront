@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Upload, FileText, X, AlertCircle, Lock } from 'lucide-react';
+import { Upload, FileText, X, AlertCircle, Lock, AlertTriangle } from 'lucide-react';
 import { fileService } from '../../lib/services/fileService';
 import toast from 'react-hot-toast';
 
@@ -11,19 +11,27 @@ const FileUpload: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [customName, setCustomName] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [userKey, setUserKey] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const uploadMutation = useMutation({
     mutationFn: ({ file, nombre }: { file: File; nombre?: string }) =>
       fileService.uploadFile(file, nombre),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['files'] });
-      toast.success('Archivo subido y cifrado exitosamente');
+      
+      if (data.userKey) {
+        setUserKey(data.userKey);
+        toast.success('Archivo subido exitosamente');
+      } else {
+        toast.success('Archivo subido y cifrado exitosamente');
+      }
+      
       setSelectedFile(null);
       setCustomName('');
       setUploading(false);
     },
-    onError: (error: unknown) => { // Cambiar 'any' por 'unknown'
+    onError: (error: unknown) => {
       let errorMessage = 'Error desconocido';
       
       if (error instanceof Error) {
@@ -87,6 +95,21 @@ const FileUpload: React.FC = () => {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const copyKeyToClipboard = async () => {
+    if (userKey) {
+      try {
+        await navigator.clipboard.writeText(userKey);
+        toast.success('Clave copiada al portapapeles');
+      } catch (error) {
+        toast.error('Error al copiar la clave');
+      }
+    }
+  };
+
+  const closeKeyModal = () => {
+    setUserKey(null);
   };
 
   return (
@@ -234,6 +257,75 @@ const FileUpload: React.FC = () => {
               </h3>
               <div className='mt-2 text-sm text-yellow-700'>
                 <p>El archivo se está cifrando y almacenando de forma segura. Por favor espera.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de clave de descifrado */}
+      {userKey && (
+        <div className='fixed inset-0 z-50 overflow-hidden'>
+          <div className='fixed inset-0 bg-black bg-opacity-75' onClick={closeKeyModal} />
+          
+          <div className='fixed inset-0 flex items-center justify-center p-4'>
+            <div className='relative bg-white rounded-lg shadow-xl max-w-md w-full'>
+              <div className='p-6'>
+                <div className='text-center'>
+                  <div className='mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4'>
+                    <Lock className='h-6 w-6 text-green-600' />
+                  </div>
+                  
+                  <h3 className='text-lg font-medium text-gray-900 mb-2'>
+                    ¡Archivo Subido Exitosamente!
+                  </h3>
+                  
+                  <p className='text-sm text-gray-500 mb-6'>
+                    Guarda esta clave de descifrado. Los usuarios la necesitarán para ver y descargar el documento.
+                  </p>
+                  
+                  <div className='mb-6'>
+                    <label className='block text-sm font-medium text-gray-700 mb-2'>
+                      Clave de Descifrado:
+                    </label>
+                    <div className='flex items-center space-x-2'>
+                      <input
+                        type='text'
+                        value={userKey}
+                        readOnly
+                        className='flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-center font-mono text-sm'
+                      />
+                      <button
+                        type='button'
+                        onClick={copyKeyToClipboard}
+                        className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700'
+                      >
+                        Copiar
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className='bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-6'>
+                    <div className='flex'>
+                      <AlertTriangle className='h-5 w-5 text-yellow-400 mr-2' />
+                      <div className='text-sm text-yellow-700'>
+                        <p><strong>Importante:</strong> Esta clave se usa para:</p>
+                        <ul className='list-disc list-inside mt-1'>
+                          <li>Descifrar el documento</li>
+                          <li>Abrir el PDF descargado</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button
+                    type='button'
+                    onClick={closeKeyModal}
+                    className='w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700'
+                  >
+                    Entendido
+                  </button>
+                </div>
               </div>
             </div>
           </div>
