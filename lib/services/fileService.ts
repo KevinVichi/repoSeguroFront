@@ -191,4 +191,41 @@ export const fileService = {
       throw error;
     }
   },
+
+  // ✅ NUEVO: Eliminar todos los documentos
+  async deleteAllDocuments(options: {
+    deleteFiles?: boolean;
+    permanent?: boolean;
+  } = {}): Promise<void> {
+    try {
+      console.log(`🗑️ Eliminando todos los documentos:`, options);
+      
+      const response = await api.post('/pdfs/delete-all', options);
+      
+      if (response.status === 200) {
+        console.log(`✅ Todos los documentos eliminados exitosamente`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error eliminando todos los documentos:', getErrorMessage(error));
+      throw error;
+    }
+  },
+
+  // ✅ NUEVO: Eliminar permanentemente un documento específico
+  async permanentDeleteDocument(documentoId: number): Promise<void> {
+    try {
+      console.log(`💀 Eliminando permanentemente documento ${documentoId}`);
+      
+      const response = await api.delete(`/pdfs/${documentoId}/permanent-delete`);
+      
+      if (response.status === 200) {
+        console.log(`✅ Documento ${documentoId} eliminado permanentemente`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error eliminando permanentemente documento:', getErrorMessage(error));
+      throw error;
+    }
+  },
 };

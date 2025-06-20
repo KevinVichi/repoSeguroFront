@@ -1,300 +1,233 @@
 'use client';
-
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Trash2, 
-  RotateCcw, 
-  AlertTriangle, 
-  Calendar, 
-  User, 
-  FileText,
-  RefreshCw,
-  Search
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { fileService } from '../../lib/services/fileService';
-import { Documento } from '../../types';
 import toast from 'react-hot-toast';
+import { TrashIcon, ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-const DeletedFiles: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const queryClient = useQueryClient();
+interface DeletedDocument {
+  DocumentoID: number;
+  Nombre: string;
+  NombreOriginal: string;
+  FechaSubida: string;
+  TamañoArchivo: number;
+  UsuarioCreador: number;
+}
 
-  // ✅ OBTENER DOCUMENTOS ELIMINADOS
-  const { 
-    data: deletedFiles = [], 
-    isLoading, 
-    error, 
-    refetch 
-  } = useQuery<Documento[]>({
-    queryKey: ['deletedFiles'],
-    queryFn: fileService.getDeletedFiles,
-    refetchInterval: 30000 // Refrescar cada 30 segundos
-  });
+export default function DeletedFiles() {
+  const [deletedFiles, setDeletedFiles] = useState<DeletedDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedFiles, setSelectedFiles] = useState<number[]>([]);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
-  // ✅ MUTACIÓN PARA RESTAURAR
-  const restoreMutation = useMutation({
-    mutationFn: fileService.restoreFile,
-    onSuccess: (_, documentoId) => {
-      queryClient.invalidateQueries({ queryKey: ['deletedFiles'] });
-      queryClient.invalidateQueries({ queryKey: ['files'] }); // Refrescar lista principal
-      toast.success('Documento restaurado exitosamente');
-    },
-    onError: (error) => {
-      console.error('Error restaurando:', error);
-      toast.error('Error al restaurar el documento');
-    }
-  });
+  useEffect(() => {
+    loadDeletedFiles();
+  }, []);
 
-  // ✅ FILTRAR POR BÚSQUEDA
-  const filteredFiles = deletedFiles.filter(file =>
-    file.Nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    file.NombreOriginal.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleRestore = async (documentoId: number, nombre: string) => {
-    if (window.confirm(`¿Estás seguro de que quieres restaurar "${nombre}"?`)) {
-      restoreMutation.mutate(documentoId);
+  const loadDeletedFiles = async () => {
+    try {
+      setIsLoading(true);
+      const data = await fileService.getDeletedFiles();
+      setDeletedFiles(data);
+    } catch (error) {
+      toast.error('Error cargando archivos eliminados');
+      console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // ✅ FUNCIÓN formatFileSize CORREGIDA
+  // ✅ NUEVO: Restaurar documento
+  const handleRestore = async (documentoId: number) => {
+    try {
+      await fileService.restoreFile(documentoId);
+      toast.success('Documento restaurado exitosamente');
+      loadDeletedFiles(); // Recargar lista
+    } catch (error) {
+      toast.error('Error restaurando documento');
+      console.error('Error:', error);
+    }
+  };
+
+  // ✅ NUEVO: Eliminar permanentemente un documento
+  const handlePermanentDelete = async (documentoId: number) => {
+    if (!confirm('¿Estás seguro? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      await fileService.permanentDeleteDocument(documentoId);
+      toast.success('Documento eliminado permanentemente');
+      loadDeletedFiles(); // Recargar lista
+    } catch (error) {
+      toast.error('Error eliminando documento permanentemente');
+      console.error('Error:', error);
+    }
+  };
+
+  // ✅ NUEVO: Eliminar todos los documentos
+  const handleDeleteAll = async (permanent: boolean = false) => {
+    try {
+      await fileService.deleteAllDocuments({
+        deleteFiles: true,
+        permanent
+      });
+      
+      toast.success(permanent ? 
+        'Todos los documentos eliminados permanentemente' : 
+        'Todos los documentos marcados como inactivos'
+      );
+      
+      loadDeletedFiles();
+      setShowDeleteAllModal(false);
+      
+    } catch (error) {
+      toast.error('Error eliminando todos los documentos');
+      console.error('Error:', error);
+    }
+  };
+
   const formatFileSize = (bytes: number): string => {
-    // ✅ MANEJAR CASO ESPECIAL DE 0 BYTES
-    if (bytes === 0) return '0 B';
-    
+    if (bytes === 0) return '0 Bytes';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    // ✅ ASEGURAR QUE i ESTÉ DENTRO DEL RANGO VÁLIDO
-    const sizeIndex = Math.min(i, sizes.length - 1);
-    
-    return parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2)) + ' ' + sizes[sizeIndex];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   if (isLoading) {
     return (
-      <div className='flex items-center justify-center h-64'>
-        <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600'></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className='text-center py-12'>
-        <AlertTriangle className='mx-auto h-12 w-12 text-red-400' />
-        <h3 className='mt-2 text-sm font-medium text-gray-900'>Error al cargar documentos eliminados</h3>
-        <p className='mt-1 text-sm text-gray-500'>
-          Hubo un problema al cargar los documentos eliminados.
-        </p>
-        <button
-          type='button'
-          onClick={() => refetch()}
-          className='mt-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-        >
-          <RefreshCw className='h-4 w-4 mr-1' />
-          Reintentar
-        </button>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   return (
-    <div className='max-w-7xl mx-auto'>
-      <div className='mb-8'>
-        <h1 className='text-2xl font-semibold text-gray-900'>Documentos Eliminados</h1>
-        <p className='mt-2 text-sm text-gray-700'>
-          Gestiona y restaura documentos que han sido eliminados del sistema
-        </p>
-      </div>
-
-      {/* ESTADÍSTICAS */}
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'>
-        <div className='bg-white overflow-hidden shadow rounded-lg'>
-          <div className='p-5'>
-            <div className='flex items-center'>
-              <div className='flex-shrink-0'>
-                <Trash2 className='h-6 w-6 text-red-400' />
-              </div>
-              <div className='ml-5 w-0 flex-1'>
-                <dl>
-                  <dt className='text-sm font-medium text-gray-500 truncate'>
-                    Total Eliminados
-                  </dt>
-                  <dd className='text-lg font-medium text-gray-900'>
-                    {deletedFiles.length}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white overflow-hidden shadow rounded-lg'>
-          <div className='p-5'>
-            <div className='flex items-center'>
-              <div className='flex-shrink-0'>
-                <FileText className='h-6 w-6 text-blue-400' />
-              </div>
-              <div className='ml-5 w-0 flex-1'>
-                <dl>
-                  <dt className='text-sm font-medium text-gray-500 truncate'>
-                    Tamaño Total
-                  </dt>
-                  <dd className='text-lg font-medium text-gray-900'>
-                    {formatFileSize(deletedFiles.reduce((acc, file) => acc + (file.TamañoArchivo ?? 0), 0))}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white overflow-hidden shadow rounded-lg'>
-          <div className='p-5'>
-            <div className='flex items-center'>
-              <div className='flex-shrink-0'>
-                <RotateCcw className='h-6 w-6 text-green-400' />
-              </div>
-              <div className='ml-5 w-0 flex-1'>
-                <dl>
-                  <dt className='text-sm font-medium text-gray-500 truncate'>
-                    Disponibles para Restaurar
-                  </dt>
-                  <dd className='text-lg font-medium text-gray-900'>
-                    {filteredFiles.length}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* BARRA DE BÚSQUEDA Y ACCIONES */}
-      <div className='bg-white shadow rounded-lg mb-6'>
-        <div className='px-4 py-5 sm:p-6'>
-          <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-            <div className='flex-1 max-w-lg'>
-              <label htmlFor='search' className='sr-only'>
-                Buscar documentos eliminados
-              </label>
-              <div className='relative'>
-                <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-                  <Search className='h-4 w-4 text-gray-400' />
-                </div>
-                <input
-                  id='search'
-                  type='text'
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder='Buscar por nombre de documento...'
-                  className='block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
-                />
-              </div>
-            </div>
-
-            <button
-              type='button'
-              onClick={() => refetch()}
-              className='inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-            >
-              <RefreshCw className='h-4 w-4 mr-1' />
-              Actualizar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* LISTA DE DOCUMENTOS ELIMINADOS */}
-      <div className='bg-white shadow overflow-hidden sm:rounded-md'>
-        <div className='px-4 py-5 sm:px-6 border-b border-gray-200'>
-          <h3 className='text-lg leading-6 font-medium text-gray-900'>
-            Documentos Eliminados
-          </h3>
-          <p className='mt-1 max-w-2xl text-sm text-gray-500'>
-            {filteredFiles.length} de {deletedFiles.length} documentos mostrados
+    <div className="space-y-6">
+      {/* ✅ HEADER CON BOTONES DE ACCIÓN */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Documentos Eliminados</h1>
+          <p className="mt-2 text-sm text-gray-700">
+            Gestiona los documentos que han sido eliminados ({deletedFiles.length} documentos)
           </p>
         </div>
+        
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setShowDeleteAllModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
+            Eliminar Todos
+          </button>
+          
+          <button
+            onClick={loadDeletedFiles}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <ArrowPathIcon className="h-4 w-4 mr-2" />
+            Actualizar
+          </button>
+        </div>
+      </div>
 
-        {filteredFiles.length === 0 ? (
-          <div className='text-center py-12'>
-            <Trash2 className='mx-auto h-12 w-12 text-gray-400' />
-            <h3 className='mt-2 text-sm font-medium text-gray-900'>
-              No hay documentos eliminados
-            </h3>
-            <p className='mt-1 text-sm text-gray-500'>
-              {searchTerm ? 'No se encontraron documentos que coincidan con tu búsqueda.' : 'No hay documentos eliminados en el sistema.'}
-            </p>
-          </div>
-        ) : (
-          <ul className='divide-y divide-gray-200'>
-            {filteredFiles.map((file) => (
-              <li key={file.DocumentoID}>
-                <div className='px-4 py-4 sm:px-6'>
-                  <div className='flex items-center justify-between'>
-                    <div className='flex items-center min-w-0 flex-1'>
-                      <div className='flex-shrink-0'>
-                        <FileText className='h-8 w-8 text-red-400' />
+      {/* ✅ LISTA DE DOCUMENTOS ELIMINADOS */}
+      {deletedFiles.length === 0 ? (
+        <div className="text-center py-12">
+          <TrashIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No hay documentos eliminados</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Los documentos eliminados aparecerán aquí.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <ul className="divide-y divide-gray-200">
+            {deletedFiles.map((file) => (
+              <li key={file.DocumentoID} className="px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <TrashIcon className="h-8 w-8 text-red-400" />
+                    </div>
+                    <div className="ml-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {file.NombreOriginal}
                       </div>
-                      <div className='min-w-0 flex-1 ml-4'>
-                        <div className='flex items-center'>
-                          <p className='text-sm font-medium text-gray-900 truncate'>
-                            {file.Nombre}
-                          </p>
-                          <span className='ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800'>
-                            Eliminado
-                          </span>
-                        </div>
-                        <p className='text-sm text-gray-500 truncate'>
-                          Archivo original: {file.NombreOriginal}
-                        </p>
-                        <div className='mt-2 flex items-center text-sm text-gray-500'>
-                          <Calendar className='h-4 w-4 mr-1' />
-                          <span>Subido: {new Date(file.FechaSubida).toLocaleDateString('es-ES')}</span>
-                          <span className='mx-2'>•</span>
-                          <span>{formatFileSize(file.TamañoArchivo || 0)}</span>
-                          {file.UsuarioCreador && (
-                            <>
-                              <span className='mx-2'>•</span>
-                              <User className='h-4 w-4 mr-1' />
-                              <span>Por: Usuario {file.UsuarioCreador}</span>
-                            </>
-                          )}
-                        </div>
+                      <div className="text-sm text-gray-500">
+                        Eliminado: {new Date(file.FechaSubida).toLocaleDateString()} • 
+                        Tamaño: {formatFileSize(file.TamañoArchivo)}
                       </div>
                     </div>
-                    <div className='flex-shrink-0 ml-4'>
-                      <button
-                        type='button'
-                        onClick={() => handleRestore(file.DocumentoID, file.Nombre)}
-                        disabled={restoreMutation.isPending}
-                        className='inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed'
-                      >
-                        {restoreMutation.isPending ? (
-                          <>
-                            <div className='animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1'></div>
-                            Restaurando...
-                          </>
-                        ) : (
-                          <>
-                            <RotateCcw className='h-3 w-3 mr-1' />
-                            Restaurar
-                          </>
-                        )}
-                      </button>
-                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {/* ✅ BOTÓN RESTAURAR */}
+                    <button
+                      onClick={() => handleRestore(file.DocumentoID)}
+                      className="inline-flex items-center px-3 py-1 border border-green-300 rounded-md text-sm font-medium text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    >
+                      <ArrowPathIcon className="h-4 w-4 mr-1" />
+                      Restaurar
+                    </button>
+                    
+                    {/* ✅ BOTÓN ELIMINAR PERMANENTEMENTE */}
+                    <button
+                      onClick={() => handlePermanentDelete(file.DocumentoID)}
+                      className="inline-flex items-center px-3 py-1 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      <TrashIcon className="h-4 w-4 mr-1" />
+                      Eliminar
+                    </button>
                   </div>
                 </div>
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* ✅ MODAL PARA CONFIRMAR ELIMINACIÓN MASIVA */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mt-4">
+                Eliminar Todos los Documentos
+              </h3>
+              <div className="mt-2 px-7 py-3">
+                <p className="text-sm text-gray-500">
+                  ¿Qué tipo de eliminación deseas realizar?
+                </p>
+              </div>
+              <div className="flex flex-col space-y-3 px-4 py-3">
+                <button
+                  onClick={() => handleDeleteAll(false)}
+                  className="px-4 py-2 bg-yellow-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-300"
+                >
+                  Marcar como Inactivos (Reversible)
+                </button>
+                <button
+                  onClick={() => handleDeleteAll(true)}
+                  className="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+                >
+                  Eliminar Permanentemente (Irreversible)
+                </button>
+                <button
+                  onClick={() => setShowDeleteAllModal(false)}
+                  className="px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
-export default DeletedFiles;
+}
