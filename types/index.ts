@@ -17,7 +17,7 @@ export interface Documento {
   FechaSubida: string;
   Activo: boolean;
   Checksum: string;
-  TamañoArchivo?: number;
+  TamañoArchivo?: number | undefined;
   FirmaDigital?: string;
   ClaveDescifrado?: string;
   ClaveUsuarioCifrada?: string;

@@ -27,7 +27,7 @@ export default function DeletedFiles() {
     try {
       setIsLoading(true);
       const data = await fileService.getDeletedFiles();
-      setDeletedFiles(data);
+      setDeletedFiles(data); 
     } catch (error) {
       toast.error('Error cargando archivos eliminados');
       console.error('Error:', error);
