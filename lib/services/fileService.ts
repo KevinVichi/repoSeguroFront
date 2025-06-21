@@ -72,19 +72,51 @@ export const fileService = {
 
   // ✅ MÉTODO PRINCIPAL: VISUALIZAR PDF CON CLAVE
   async viewDocumentWithKey(documentoId: number, userKey: string): Promise<Blob> {
+    console.log(`🔍 fileService.viewDocumentWithKey - ID: ${documentoId}`);
+    
     try {
-      const response = await api.post(`/pdfs/${documentoId}/viewblock`, // ✅ POST con viewblock
-        { userKey },
-        { 
-          responseType: 'blob',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      console.log(`📡 Haciendo request a: /api/pdfs/${documentoId}/viewblock`);
+      
+      const response = await fetch(`/api/pdfs/${documentoId}/viewblock`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userKey: userKey
+        })
+      });
+
+      console.log(`📡 Response status: ${response.status}`);
+      console.log(`📡 Response headers:`, Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Error response: ${errorText}`);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
         }
-      );
-      return response.data;
+        
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      console.log(`✅ Blob recibido: ${blob.size} bytes, tipo: ${blob.type}`);
+      
+      return blob;
+      
     } catch (error) {
-      console.error('❌ Error visualizando documento:', getErrorMessage(error));
+      console.error('❌ Error en viewDocumentWithKey:', error);
       throw error;
     }
   },

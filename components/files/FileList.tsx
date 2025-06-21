@@ -19,16 +19,10 @@ import {
 import { fileService } from '../../lib/services/fileService';
 import { Documento } from '../../types';
 import toast from 'react-hot-toast';
-import PDFViewer from './PDFViewer';
-import SecurePDFViewer from './SecurePDFViewer';
 
 const FileList: React.FC = () => {
   const queryClient = useQueryClient();
 
-  // ✅ ESTADOS PARA EL VISOR PDF
-  const [selectedDocument, setSelectedDocument] = useState<Documento | null>(null);
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
-  
   // ✅ NUEVO: Estados para modal de clave
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [documentForAction, setDocumentForAction] = useState<{
@@ -53,12 +47,7 @@ const FileList: React.FC = () => {
   const handleViewDocument = (documento: Documento) => {
     requestKeyForAction(documento, 'view');
   };
-
-  const handleCloseViewer = () => {
-    setIsViewerOpen(false);
-    setSelectedDocument(null);
-  };
-
+  
   // ✅ MUTATION PARA ELIMINAR ARCHIVOS
   const deleteFileMutation = useMutation({
     mutationFn: fileService.deleteFile,
@@ -96,12 +85,98 @@ const FileList: React.FC = () => {
           userKey.trim(), 
           documento.NombreOriginal
         );
-        toast.success('Descarga iniciada');
+        toast.success('✅ Descarga iniciada');
+        
       } else if (action === 'view') {
-        handleViewWithKey(documento, userKey.trim());
+        // ✅ ABRIR PDF DIRECTAMENTE EN NUEVA VENTANA
+        console.log(`📖 Abriendo PDF ${documento.DocumentoID} en nueva ventana`);
+        
+        const blob = await fileService.viewDocumentWithKey(
+          documento.DocumentoID, 
+          userKey.trim()
+        );
+        const url = URL.createObjectURL(blob);
+        
+        // ✅ ABRIR EN NUEVA VENTANA CON RESTRICCIONES
+        const newWindow = window.open(
+          url,
+          `pdf_${documento.DocumentoID}`,
+          `
+            width=1200,
+            height=900,
+            scrollbars=yes,
+            resizable=yes,
+            menubar=no,
+            toolbar=no,
+            location=no,
+            status=no,
+            directories=no
+          `.replace(/\s+/g, '')
+        );
+
+        if (newWindow) {
+          // 🛡️ APLICAR PROTECCIONES A LA NUEVA VENTANA
+          newWindow.onload = () => {
+            try {
+              // ✅ CAMBIAR TÍTULO
+              newWindow.document.title = `${documento.Nombre} - Solo Lectura`;
+              
+              // 🛡️ INTERCEPTAR FUNCIONES PELIGROSAS
+              newWindow.print = () => {
+                const canDownload = documento.PuedeDescargar !== false && user.Rol === 'admin';
+                if (!canDownload) {
+                  toast.error('🚫 Impresión no permitida');
+                  return;
+                }
+                window.print.call(newWindow);
+              };
+
+              // 🛡️ PREVENIR ATAJOS DE TECLADO
+              newWindow.document.addEventListener('keydown', (e) => {
+                const canDownload = documento.PuedeDescargar !== false && user.Rol === 'admin';
+                if (!canDownload && (
+                  (e.ctrlKey && e.key === 's') || // Guardar
+                  (e.ctrlKey && e.key === 'p') || // Imprimir
+                  (e.ctrlKey && e.key === 'a')    // Seleccionar todo
+                )) {
+                  e.preventDefault();
+                  toast.error('🚫 Función no permitida');
+                }
+              });
+
+              // 🛡️ PREVENIR CLICK DERECHO
+              const canDownload = documento.PuedeDescargar !== false && user.Rol === 'admin';
+              if (!canDownload) {
+                newWindow.document.addEventListener('contextmenu', (e) => {
+                  e.preventDefault();
+                  toast.error('🚫 Click derecho deshabilitado');
+                });
+              }
+
+              console.log('✅ PDF abierto en nueva ventana con protecciones');
+              
+            } catch (error) {
+              console.log('🛡️ Protecciones limitadas por CORS');
+            }
+          };
+
+          // ✅ LIMPIAR URL CUANDO SE CIERRE LA VENTANA
+          const checkClosed = setInterval(() => {
+            if (newWindow.closed) {
+              clearInterval(checkClosed);
+              URL.revokeObjectURL(url);
+              console.log('🧹 PDF window cerrada y URL limpia');
+            }
+          }, 1000);
+
+          toast.success('✅ PDF abierto en nueva ventana');
+          
+        } else {
+          throw new Error('No se pudo abrir la ventana. Verifica que no esté bloqueada por el navegador.');
+        }
       }
       
-      // Cerrar modal
+      // ✅ CERRAR MODAL DE CLAVE
       setIsKeyModalOpen(false);
       setDocumentForAction(null);
       setUserKey('');
@@ -112,15 +187,6 @@ const FileList: React.FC = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  // ✅ FUNCIÓN PARA VER CON CLAVE (MODIFICADA)
-  const handleViewWithKey = (documento: Documento, key: string) => {
-    setSelectedDocument({ 
-      ...documento, 
-      tempUserKey: key 
-    });
-    setIsViewerOpen(true);
   };
 
   // ✅ FUNCIÓN PARA DESCARGAR ARCHIVOS
@@ -431,19 +497,6 @@ const FileList: React.FC = () => {
         </div>
       )}
 
-      {/* ✅ MODAL VISOR PDF MODIFICADO */}
-      {selectedDocument && (
-        <SecurePDFViewer
-          documento={selectedDocument}
-          isOpen={isViewerOpen}
-          onClose={handleCloseViewer}
-          canDownload={
-            selectedDocument.PuedeDescargar !== false && 
-            user.Rol === 'admin'
-          }
-          userKey={(selectedDocument as any).tempUserKey}
-        />
-      )}
     </div>
   );
 };
