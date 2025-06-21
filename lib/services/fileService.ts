@@ -64,41 +64,101 @@ export const fileService = {
     }
   },
 
-  // ✅ MÉTODO PARA VISUALIZAR PDF CORREGIDO
-  async viewFile(documentoId: number): Promise<string> {
+  // ❌ ELIMINAR: Estos métodos no funcionan sin clave
+  // async viewFile(documentoId: number): Promise<string>
+  // async downloadFile(documentoId: number): Promise<Blob>
+
+  // ✅ MÉTODOS CORREGIDOS QUE REQUIEREN CLAVE:
+
+  // ✅ MÉTODO PRINCIPAL: VISUALIZAR PDF CON CLAVE
+  async viewDocumentWithKey(documentoId: number, userKey: string): Promise<Blob> {
     try {
-      const response = await api.get(`/pdfs/download/${documentoId}`, {
-        responseType: 'blob'
-      });
-
-      const blob = response.data;
-      const url = URL.createObjectURL(blob);
-      
-      return url;
-      
-    } catch (error) {
-      console.error('❌ Error obteniendo PDF para visualización:', getErrorMessage(error));
-      throw error;
-    }
-  },
-
-  // ✅ AGREGAR: Método para limpiar URL temporal
-  revokeFileUrl(url: string): void {
-    URL.revokeObjectURL(url);
-  },
-
-  // ✅ MÉTODO PARA DESCARGAR ARCHIVO CORREGIDO
-  async downloadFile(documentoId: number): Promise<Blob> {
-    try {
-      const response = await api.get(`/pdfs/download/${documentoId}`, {
-        responseType: 'blob'
-      });
-
+      const response = await api.post(`/pdfs/${documentoId}/viewblock`, // ✅ POST con viewblock
+        { userKey },
+        { 
+          responseType: 'blob',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       return response.data;
     } catch (error) {
-      console.error('❌ Error descargando archivo:', getErrorMessage(error));
+      console.error('❌ Error visualizando documento:', getErrorMessage(error));
       throw error;
     }
+  },
+
+  // ✅ MÉTODO PRINCIPAL: DESCARGAR PDF CON CLAVE
+  async downloadDocumentWithKey(documentoId: number, userKey: string): Promise<Blob> {
+    try {
+      const response = await api.post(`/pdfs/${documentoId}/downloadBlock`, // ✅ POST con downloadBlock
+        { userKey },
+        { 
+          responseType: 'blob',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error descargando documento:', getErrorMessage(error));
+      throw error;
+    }
+  },
+
+  // ✅ CREAR URL TEMPORAL PARA VISUALIZACIÓN
+  async createViewUrl(documentoId: number, userKey: string): Promise<string> {
+    try {
+      const blob = await this.viewDocumentWithKey(documentoId, userKey);
+      const url = URL.createObjectURL(blob);
+      return url;
+    } catch (error) {
+      console.error('❌ Error creando URL de visualización:', getErrorMessage(error));
+      throw error;
+    }
+  },
+
+  // ✅ DESCARGAR ARCHIVO DIRECTAMENTE
+  async downloadFileDirectly(documentoId: number, userKey: string, filename?: string): Promise<void> {
+    try {
+      const blob = await this.downloadDocumentWithKey(documentoId, userKey);
+      
+      // Crear enlace temporal para descarga
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `documento_${documentoId}.pdf`;
+      
+      // Simular click para descargar
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Limpiar URL temporal
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('❌ Error en descarga directa:', getErrorMessage(error));
+      throw error;
+    }
+  },
+
+  // ✅ VALIDAR CLAVE DE DESCIFRADO
+  async validateDecryptionKey(documentoId: number, userKey: string): Promise<boolean> {
+    try {
+      await this.viewDocumentWithKey(documentoId, userKey);
+      return true; // Si no hay error, la clave es válida
+    } catch (error) {
+      console.error('❌ Error validando clave:', getErrorMessage(error));
+      return false; // Si hay error, la clave es inválida
+    }
+  },
+
+  // ✅ LIMPIAR URL TEMPORAL
+  revokeFileUrl(url: string): void {
+    URL.revokeObjectURL(url);
   },
 
   // ✅ NUEVO MÉTODO: Obtener documentos eliminados (solo para admins)
@@ -126,68 +186,6 @@ export const fileService = {
       
     } catch (error) {
       console.error('❌ Error restaurando archivo:', getErrorMessage(error));
-      throw error;
-    }
-  },
-
-  // ✅ ACTUALIZAR MÉTODO viewDocumentWithKey
-  async viewDocumentWithKey(documentoId: number, userKey: string): Promise<Blob> {
-    try {
-      const response = await api.post(`/pdfs/${documentoId}/viewblock`, // ✅ USAR viewblock
-        { userKey },
-        { 
-          responseType: 'blob',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error visualizando documento:', getErrorMessage(error));
-      throw error;
-    }
-  },
-
-  // ✅ ACTUALIZAR MÉTODO downloadDocumentWithKey  
-  async downloadDocumentWithKey(documentoId: number, userKey: string): Promise<Blob> {
-    try {
-      const response = await api.post(`/pdfs/${documentoId}/downloadBlock`, // ✅ USAR downloadBlock
-        { userKey },
-        { 
-          responseType: 'blob',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error descargando documento:', getErrorMessage(error));
-      throw error;
-    }
-  },
-
-  // ✅ ACTUALIZAR EL MÉTODO validateDecryptionKey PARA USAR EL ENDPOINT CORRECTO
-  async validateDecryptionKey(documentoId: number, userKey: string): Promise<Blob> {
-    try {
-      // Usar el nuevo endpoint de viewblock
-      return await this.viewDocumentWithKey(documentoId, userKey);
-    } catch (error) {
-      console.error('❌ Error validando clave:', getErrorMessage(error));
-      throw error;
-    }
-  },
-
-  // ✅ MÉTODO ADICIONAL: Ver documento sin clave (para archivos no cifrados)
-  async viewDocument(documentoId: number): Promise<Blob> {
-    try {
-      const response = await api.get(`/pdfs/${documentoId}/view`, {
-        responseType: 'blob'
-      });
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error visualizando documento:', getErrorMessage(error));
       throw error;
     }
   },

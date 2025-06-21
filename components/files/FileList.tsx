@@ -20,6 +20,7 @@ import { fileService } from '../../lib/services/fileService';
 import { Documento } from '../../types';
 import toast from 'react-hot-toast';
 import PDFViewer from './PDFViewer';
+import SecurePDFViewer from './SecurePDFViewer';
 
 const FileList: React.FC = () => {
   const queryClient = useQueryClient();
@@ -27,6 +28,15 @@ const FileList: React.FC = () => {
   // ✅ ESTADOS PARA EL VISOR PDF
   const [selectedDocument, setSelectedDocument] = useState<Documento | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  
+  // ✅ NUEVO: Estados para modal de clave
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [documentForAction, setDocumentForAction] = useState<{
+    documento: Documento;
+    action: 'view' | 'download';
+  } | null>(null);
+  const [userKey, setUserKey] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // ✅ Obtener usuario desde localStorage
   const user = typeof window !== 'undefined' 
@@ -41,8 +51,7 @@ const FileList: React.FC = () => {
 
   // ✅ FUNCIONES PARA EL VISOR PDF
   const handleViewDocument = (documento: Documento) => {
-    setSelectedDocument(documento);
-    setIsViewerOpen(true);
+    requestKeyForAction(documento, 'view');
   };
 
   const handleCloseViewer = () => {
@@ -62,30 +71,61 @@ const FileList: React.FC = () => {
     }
   });
 
-  // ✅ FUNCIÓN PARA DESCARGAR ARCHIVOS
-  const handleDownload = async (documento: Documento) => {
-    try {
-      const blob = await fileService.downloadFile(documento.DocumentoID);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = documento.NombreOriginal;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      // 🔐 MOSTRAR MENSAJE SOBRE LA CONTRASEÑA
-      toast.success(
-        'PDF descargado. Está protegido con contraseña. ' +
-        'Usa la clave cifrada proporcionada por el administrador para abrirlo.',
-        { duration: 6000 }
-      );
-    } catch (error) {
-      toast.error('Error al descargar el archivo');
-      console.error('Download error:', error);
+  // ✅ FUNCIÓN PARA SOLICITAR CLAVE
+  const requestKeyForAction = (documento: Documento, action: 'view' | 'download') => {
+    setDocumentForAction({ documento, action });
+    setUserKey('');
+    setIsKeyModalOpen(true);
+  };
+
+  // ✅ FUNCIÓN PARA PROCESAR ACCIÓN CON CLAVE
+  const handleActionWithKey = async () => {
+    if (!documentForAction || !userKey.trim()) {
+      toast.error('Por favor ingresa la clave de descifrado');
+      return;
     }
+
+    setIsProcessing(true);
+    
+    try {
+      const { documento, action } = documentForAction;
+      
+      if (action === 'download') {
+        await fileService.downloadFileDirectly(
+          documento.DocumentoID, 
+          userKey.trim(), 
+          documento.NombreOriginal
+        );
+        toast.success('Descarga iniciada');
+      } else if (action === 'view') {
+        handleViewWithKey(documento, userKey.trim());
+      }
+      
+      // Cerrar modal
+      setIsKeyModalOpen(false);
+      setDocumentForAction(null);
+      setUserKey('');
+      
+    } catch (error) {
+      console.error('Error en acción:', error);
+      toast.error('Clave incorrecta o error en la operación');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ✅ FUNCIÓN PARA VER CON CLAVE (MODIFICADA)
+  const handleViewWithKey = (documento: Documento, key: string) => {
+    setSelectedDocument({ 
+      ...documento, 
+      tempUserKey: key 
+    });
+    setIsViewerOpen(true);
+  };
+
+  // ✅ FUNCIÓN PARA DESCARGAR ARCHIVOS
+  const handleDownload = (documento: Documento) => {
+    requestKeyForAction(documento, 'download');
   };
 
   // ✅ FUNCIÓN PARA ELIMINAR ARCHIVOS
@@ -255,7 +295,7 @@ const FileList: React.FC = () => {
                       {documento.PuedeVer !== false && (
                         <button
                           type='button'
-                          onClick={() => handleViewDocument(documento)}
+                          onClick={() => handleViewDocument(documento)}  // ✅ SIN PASAR CLAVE
                           className='inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500'
                           title='Ver documento'
                         >
@@ -278,7 +318,7 @@ const FileList: React.FC = () => {
                       {documento.PuedeDescargar !== false && (
                         <button
                           type='button'
-                          onClick={() => handleDownload(documento)}
+                          onClick={() => handleDownload(documento)}  // ✅ SIN PASAR CLAVE
                           className='inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                           title='Descargar PDF protegido con contraseña'
                         >
@@ -334,13 +374,74 @@ const FileList: React.FC = () => {
         </div>
       )}
       
-      {/* ✅ MODAL VISOR PDF */}
+      {/* ✅ MODAL PARA INGRESAR CLAVE */}
+      {isKeyModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsKeyModalOpen(false)}></div>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+              <div>
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                  <Lock className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="mt-3 text-center sm:mt-5">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Ingresa la clave de descifrado
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      Para {documentForAction?.action === 'download' ? 'descargar' : 'visualizar'} "{documentForAction?.documento.Nombre}", 
+                      necesitas ingresar la clave de descifrado.
+                    </p>
+                  </div>
+                  <div className="mt-4">
+                    <input
+                      type="text"
+                      value={userKey}
+                      onChange={(e) => setUserKey(e.target.value)}
+                      placeholder="Ingresa tu clave de descifrado"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      onKeyPress={(e) => e.key === 'Enter' && handleActionWithKey()}
+                      disabled={isProcessing}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm disabled:opacity-50"
+                  onClick={handleActionWithKey}
+                  disabled={isProcessing || !userKey.trim()}
+                >
+                  {isProcessing ? 'Procesando...' : (documentForAction?.action === 'download' ? 'Descargar' : 'Ver')}
+                </button>
+                <button
+                  type="button"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                  onClick={() => setIsKeyModalOpen(false)}
+                  disabled={isProcessing}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ MODAL VISOR PDF MODIFICADO */}
       {selectedDocument && (
-        <PDFViewer
+        <SecurePDFViewer
           documento={selectedDocument}
           isOpen={isViewerOpen}
           onClose={handleCloseViewer}
-          canDownload={selectedDocument.PuedeDescargar !== false}
+          canDownload={
+            selectedDocument.PuedeDescargar !== false && 
+            user.Rol === 'admin'
+          }
+          userKey={(selectedDocument as any).tempUserKey}
         />
       )}
     </div>

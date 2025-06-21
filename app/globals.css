@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -39,4 +38,165 @@ body {
 
 .transition-all {
   transition: all 0.2s ease-in-out;
+}
+
+/* ✅ PREVENIR DESCARGA DE PDFs PROTEGIDOS */
+.pdf-viewer-protected {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+
+  pointer-events: auto;
+}
+
+.pdf-viewer-protected iframe {
+  pointer-events: auto;
+}
+
+/* ✅ DESHABILITAR DRAG AND DROP */
+.pdf-viewer-protected * {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+}
+
+/* ✅ PREVENIR SELECCIÓN DE TEXTO */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* ✅ PROTECCIONES ANTI-DESCARGA PARA PDF */
+.secure-pdf-container {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.secure-pdf-container iframe {
+  pointer-events: auto;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* ✅ DESHABILITAR SELECCIÓN GLOBAL DURANTE VISUALIZACIÓN */
+body.pdf-viewing {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* ✅ OCULTAR SCROLLBARS DEL PDF SI ES NECESARIO */
+.secure-pdf-container iframe::-webkit-scrollbar {
+  display: none;
+}
+
+.secure-pdf-container iframe {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ✅ AGREGAR AL FINAL DEL ARCHIVO globals.css */
+
+/* 🛡️ PROTECCIONES ULTRA-SEGURAS */
+.secure-viewing {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.secure-viewing * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+  pointer-events: auto !important;
+}
+
+.secure-viewing img {
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+  draggable: false !important;
+}
+
+.secure-viewing::-webkit-scrollbar {
+  display: none;
+}
+
+/* 🛡️ BLOQUEAR IMPRESIÓN A NIVEL CSS */
+@media print {
+  .secure-viewing * {
+    display: none !important;
+  }
+  
+  .secure-viewing::before {
+    content: "IMPRESIÓN BLOQUEADA - DOCUMENTO PROTEGIDO";
+    display: block !important;
+    font-size: 24px;
+    text-align: center;
+    margin-top: 200px;
+    color: red;
+  }
+}
+
+/* 🛡️ PROTECCIONES PARA VISOR PDF NORMAL */
+.pdf-viewing {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+.pdf-viewer-protected {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+.no-select {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
 }
