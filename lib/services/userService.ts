@@ -4,20 +4,19 @@ import { User } from '../../types';
 export const userService = {
   async getUsers(): Promise<User[]> {
     try {
+      console.log('📡 Obteniendo usuarios...');
+      
       const response = await api.get('/users');
       
-      console.log('🔍 Respuesta completa:', response.data); // ✅ DEBUG
+      console.log('🔍 Respuesta completa:', response.data);
 
-      if (response.data.success && response.data.data?.data) {
-        return response.data.data.data; // ✅ ACCEDER AL ARRAY CORRECTO
-      }
-      
-      // ✅ FALLBACK: Si la estructura es diferente
-      if (Array.isArray(response.data.data)) {
+      // ✅ ESTRUCTURA SIMPLIFICADA
+      if (response.data.success && Array.isArray(response.data.data)) {
+        console.log('✅ Usuarios obtenidos:', response.data.data.length);
         return response.data.data;
       }
       
-      console.warn('⚠️ Estructura inesperada:', response.data);
+      console.warn('⚠️ Estructura inesperada o sin usuarios:', response.data);
       return [];
       
     } catch (error) {

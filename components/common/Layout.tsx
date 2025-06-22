@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -11,7 +11,7 @@ import {
   LogOut,
   Menu,
   X,
-  Trash2 // ✅ AGREGAR ICONO PARA DOCUMENTOS ELIMINADOS
+  Trash2
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -29,25 +29,86 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  
+  // ✅ ESTADO PARA USUARIO
+  const [user, setUser] = useState<any>(null);
+  const [isClient, setIsClient] = useState(false);
 
-  // ✅ LISTA COMPLETA DE NAVEGACIÓN (INCLUYENDO DOCUMENTOS ELIMINADOS)
+  // ✅ EFECTO OPTIMIZADO - SE EJECUTA SOLO UNA VEZ
+  useEffect(() => {
+    setIsClient(true);
+    
+    const loadUser = () => {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        setUser(null);
+      }
+    };
+
+    // Cargar usuario solo una vez
+    loadUser();
+
+    // Escuchar cambios en storage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user') {
+        loadUser();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   const navigation: NavigationItem[] = [ 
     { name: 'Mis Archivos', href: '/files', icon: FileText },
     { name: 'Subir Archivo', href: '/upload', icon: Upload, adminOnly: true },
-    { name: 'Documentos Eliminados', href: '/deleted', icon: Trash2, adminOnly: true }, // ✅ AGREGADO
+    { name: 'Documentos Eliminados', href: '/deleted', icon: Trash2, adminOnly: true },
     { name: 'Permisos', href: '/permissions', icon: Users, adminOnly: true },
-    { name: 'Configuración', href: '/settings', icon: Settings }, // ✅ MANTENIDO
+    { name: 'Configuración', href: '/settings', icon: Settings },
   ];
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
     router.push('/login');
   };
 
-  // Filtrar navegación por rol (si es necesario)
-  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') ?? '{}') : {};
-  const filteredNavigation = navigation.filter(item => 
-    !item.adminOnly || user.Rol === 'admin'
-  );
+  // ✅ FUNCIÓN PARA VERIFICAR SI ES ADMIN (SIN LOGS)
+  const isAdmin = React.useMemo(() => {
+    if (!user) return false;
+    
+    // Verificar diferentes formatos de rol
+    const rol = user.Rol || user.role || user.ROL;
+    return rol === 'admin' || rol === 'Admin' || rol === 'ADMIN';
+  }, [user]);
+
+  // ✅ FILTRAR NAVEGACIÓN SEGÚN ROL (SIN LOGS)
+  const filteredNavigation = React.useMemo(() => {
+    return navigation.filter(item => {
+      if (!item.adminOnly) return true;
+      return isAdmin;
+    });
+  }, [isAdmin, navigation]);
+
+  // ✅ NO RENDERIZAR HASTA QUE EL CLIENTE ESTÉ LISTO
+  if (!isClient) {
+    return (
+      <div className='h-screen flex items-center justify-center bg-gray-100'>
+        <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600'></div>
+      </div>
+    );
+  }
 
   return (
     <div className='h-screen flex overflow-hidden bg-gray-100'>
@@ -66,14 +127,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span className='sr-only'>Cerrar menú</span>
             </button>
           </div>
-          <SidebarContent navigation={filteredNavigation} currentPath={pathname} onLogout={handleLogout} />
+          <SidebarContent 
+            navigation={filteredNavigation} 
+            currentPath={pathname} 
+            onLogout={handleLogout}
+            user={user}
+          />
         </div>
       </div>
 
       {/* Sidebar desktop */}
       <div className='hidden md:flex md:flex-shrink-0'>
         <div className='flex flex-col w-64'>
-          <SidebarContent navigation={filteredNavigation} currentPath={pathname} onLogout={handleLogout} />
+          <SidebarContent 
+            navigation={filteredNavigation} 
+            currentPath={pathname} 
+            onLogout={handleLogout}
+            user={user}
+          />
         </div>
       </div>
 
@@ -102,20 +173,33 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
 };
 
-// ✅ COMPONENTE SIDEBAR CORREGIDO - USA EL ARRAY navigation
-const SidebarContent: React.FC<{
+// ✅ COMPONENTE SIDEBAR MEMOIZADO
+const SidebarContent = React.memo<{
   navigation: NavigationItem[];
   currentPath: string;
   onLogout: () => void;
-}> = ({ navigation, currentPath, onLogout }) => {
+  user: any;
+}>(({ navigation, currentPath, onLogout, user }) => {
   return (
     <div className='flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-white'>
       <div className='flex-1 flex flex-col pt-5 pb-4 overflow-y-auto'>
         <div className='flex items-center flex-shrink-0 px-4'>
           <h1 className='text-lg font-semibold text-gray-900'>🔒 Repositorio Seguro</h1>
         </div>
+        
+        {/* Información del usuario */}
+        {user && (
+          <div className='px-4 py-3 border-b border-gray-200 bg-gray-50'>
+            <p className='text-sm font-medium text-gray-900'>
+              {user.Nombre || user.nombre || 'Usuario'}
+            </p>
+            <p className='text-xs text-gray-500'>
+              {user.Rol || user.role || 'Sin rol'} • {user.Correo || user.email || 'Sin email'}
+            </p>
+          </div>
+        )}
+        
         <nav className='mt-5 flex-1 px-2 bg-white space-y-1'>
-          {/* ✅ USAR EL ARRAY navigation EN LUGAR DE ENLACES HARDCODEADOS */}
           {navigation.map((item) => {
             const Icon = item.icon;
             const isActive = currentPath === item.href;
@@ -132,6 +216,11 @@ const SidebarContent: React.FC<{
               >
                 <Icon className='mr-3 h-5 w-5' />
                 {item.name}
+                {item.adminOnly && (
+                  <span className='ml-auto text-xs bg-red-100 text-red-800 px-1 rounded'>
+                    ADMIN
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -149,6 +238,8 @@ const SidebarContent: React.FC<{
       </div>
     </div>
   );
-};
+});
+
+SidebarContent.displayName = 'SidebarContent';
 
 export default Layout;

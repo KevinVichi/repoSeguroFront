@@ -14,7 +14,9 @@ import {
   HardDrive,
   Upload,  
   Eye,
-  ExternalLink      
+  ExternalLink,
+  Copy,
+  Check      
 } from 'lucide-react';
 import { fileService } from '../../lib/services/fileService';
 import { Documento } from '../../types';
@@ -23,7 +25,7 @@ import toast from 'react-hot-toast';
 const FileList: React.FC = () => {
   const queryClient = useQueryClient();
 
-  // ✅ NUEVO: Estados para modal de clave
+  // ✅ ESTADOS PARA MODAL DE CLAVE
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [documentForAction, setDocumentForAction] = useState<{
     documento: Documento;
@@ -31,11 +33,21 @@ const FileList: React.FC = () => {
   } | null>(null);
   const [userKey, setUserKey] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<number | null>(null);
 
-  // ✅ Obtener usuario desde localStorage
-  const user = typeof window !== 'undefined' 
-    ? JSON.parse(localStorage.getItem('user') ?? '{}') 
-    : {};
+  // ✅ OBTENER USUARIO DESDE LOCALSTORAGE
+  const [user, setUser] = useState<any>(null);
+  
+  React.useEffect(() => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+    } catch (error) {
+      console.error('Error obteniendo usuario:', error);
+    }
+  }, []);
 
   // ✅ QUERY PARA OBTENER ARCHIVOS
   const { data: files = [], isLoading, error } = useQuery({
@@ -43,11 +55,6 @@ const FileList: React.FC = () => {
     queryFn: fileService.getFiles
   });
 
-  // ✅ FUNCIONES PARA EL VISOR PDF
-  const handleViewDocument = (documento: Documento) => {
-    requestKeyForAction(documento, 'view');
-  };
-  
   // ✅ MUTATION PARA ELIMINAR ARCHIVOS
   const deleteFileMutation = useMutation({
     mutationFn: fileService.deleteFile,
@@ -59,6 +66,16 @@ const FileList: React.FC = () => {
       toast.error('Error al eliminar el archivo');
     }
   });
+
+  // ✅ VERIFICAR SI EL USUARIO ES ADMIN
+  const isAdmin = React.useMemo(() => {
+    if (!user) return false;
+    const rol = user.Rol || user.role || user.ROL;
+    return rol === 'admin' || rol === 'Admin' || rol === 'ADMIN';
+  }, [user]);
+
+  console.log('👤 Usuario actual:', user);
+  console.log('🔍 Es admin:', isAdmin);
 
   // ✅ FUNCIÓN PARA SOLICITAR CLAVE
   const requestKeyForAction = (documento: Documento, action: 'view' | 'download') => {
@@ -88,7 +105,6 @@ const FileList: React.FC = () => {
         toast.success('✅ Descarga iniciada');
         
       } else if (action === 'view') {
-        // ✅ ABRIR PDF DIRECTAMENTE EN NUEVA VENTANA
         console.log(`📖 Abriendo PDF ${documento.DocumentoID} en nueva ventana`);
         
         const blob = await fileService.viewDocumentWithKey(
@@ -97,86 +113,62 @@ const FileList: React.FC = () => {
         );
         const url = URL.createObjectURL(blob);
         
-        // ✅ ABRIR EN NUEVA VENTANA CON RESTRICCIONES
         const newWindow = window.open(
           url,
           `pdf_${documento.DocumentoID}`,
-          `
-            width=1200,
-            height=900,
-            scrollbars=yes,
-            resizable=yes,
-            menubar=no,
-            toolbar=no,
-            location=no,
-            status=no,
-            directories=no
-          `.replace(/\s+/g, '')
+          'width=1200,height=900,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no,directories=no'
         );
 
         if (newWindow) {
-          // 🛡️ APLICAR PROTECCIONES A LA NUEVA VENTANA
           newWindow.onload = () => {
             try {
-              // ✅ CAMBIAR TÍTULO
               newWindow.document.title = `${documento.Nombre} - Solo Lectura`;
               
-              // 🛡️ INTERCEPTAR FUNCIONES PELIGROSAS
               newWindow.print = () => {
-                const canDownload = documento.PuedeDescargar !== false && user.Rol === 'admin';
-                if (!canDownload) {
+                if (!isAdmin) {
                   toast.error('🚫 Impresión no permitida');
                   return;
                 }
                 window.print.call(newWindow);
               };
 
-              // 🛡️ PREVENIR ATAJOS DE TECLADO
               newWindow.document.addEventListener('keydown', (e) => {
-                const canDownload = documento.PuedeDescargar !== false && user.Rol === 'admin';
-                if (!canDownload && (
-                  (e.ctrlKey && e.key === 's') || // Guardar
-                  (e.ctrlKey && e.key === 'p') || // Imprimir
-                  (e.ctrlKey && e.key === 'a')    // Seleccionar todo
+                if (!isAdmin && (
+                  (e.ctrlKey && e.key === 's') || 
+                  (e.ctrlKey && e.key === 'p') || 
+                  (e.ctrlKey && e.key === 'a')    
                 )) {
                   e.preventDefault();
                   toast.error('🚫 Función no permitida');
                 }
               });
 
-              // 🛡️ PREVENIR CLICK DERECHO
-              const canDownload = documento.PuedeDescargar !== false && user.Rol === 'admin';
-              if (!canDownload) {
+              if (!isAdmin) {
                 newWindow.document.addEventListener('contextmenu', (e) => {
                   e.preventDefault();
                   toast.error('🚫 Click derecho deshabilitado');
                 });
               }
-
-              console.log('✅ PDF abierto en nueva ventana con protecciones');
               
             } catch (error) {
               console.log('🛡️ Protecciones limitadas por CORS');
             }
           };
 
-          // ✅ LIMPIAR URL CUANDO SE CIERRE LA VENTANA
           const checkClosed = setInterval(() => {
             if (newWindow.closed) {
               clearInterval(checkClosed);
               URL.revokeObjectURL(url);
-              console.log('🧹 PDF window cerrada y URL limpia');
             }
           }, 1000);
 
           toast.success('✅ PDF abierto en nueva ventana');
           
         } else {
-          throw new Error('No se pudo abrir la ventana. Verifica que no esté bloqueada por el navegador.');
+          throw new Error('No se pudo abrir la ventana');
         }
       }
       
-      // ✅ CERRAR MODAL DE CLAVE
       setIsKeyModalOpen(false);
       setDocumentForAction(null);
       setUserKey('');
@@ -189,9 +181,20 @@ const FileList: React.FC = () => {
     }
   };
 
-  // ✅ FUNCIÓN PARA DESCARGAR ARCHIVOS
-  const handleDownload = (documento: Documento) => {
-    requestKeyForAction(documento, 'download');
+  // ✅ FUNCIÓN PARA COPIAR CLAVE
+  const handleCopyKey = async (documento: Documento) => {
+    try {
+      if (documento.ClaveUsuarioCifrada) {
+        await navigator.clipboard.writeText(documento.ClaveUsuarioCifrada);
+        setCopiedKey(documento.DocumentoID);
+        toast.success('✅ Clave de descifrado copiada al portapapeles');
+        setTimeout(() => setCopiedKey(null), 2000);
+      } else {
+        toast.error('❌ No hay clave de descifrado disponible');
+      }
+    } catch (error) {
+      toast.error('❌ Error al copiar la clave');
+    }
   };
 
   // ✅ FUNCIÓN PARA ELIMINAR ARCHIVOS
@@ -248,10 +251,14 @@ const FileList: React.FC = () => {
         <div>
           <h1 className='text-2xl font-semibold text-gray-900'>Mis Archivos</h1>
           <p className='mt-2 text-sm text-gray-700'>
-            {user.Rol === 'admin' 
+            {isAdmin 
               ? 'Gestiona tus documentos de forma segura' 
               : 'Consulta los documentos disponibles para ti'
             }
+          </p>
+          {/* ✅ DEBUG INFO */}
+          <p className='mt-1 text-xs text-gray-500'>
+            Usuario: {user?.Nombre || 'No identificado'} | Rol: {user?.Rol || 'Sin rol'} | Admin: {isAdmin ? 'Sí' : 'No'}
           </p>
         </div>
         <div className='mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex items-center space-x-3'>
@@ -260,7 +267,7 @@ const FileList: React.FC = () => {
           </span>
           
           {/* ✅ BOTÓN SUBIR ARCHIVO - SOLO ADMIN */}
-          {user.Rol === 'admin' && (
+          {isAdmin && (
             <Link
               href='/upload'
               className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
@@ -278,15 +285,15 @@ const FileList: React.FC = () => {
         <div className='text-center py-12'>
           <FileText className='mx-auto h-12 w-12 text-gray-400' />
           <h3 className='mt-2 text-sm font-medium text-gray-900'>
-            {user.Rol === 'admin' ? 'No tienes archivos' : 'No hay archivos disponibles'}
+            {isAdmin ? 'No tienes archivos' : 'No hay archivos disponibles'}
           </h3>
           <p className='mt-1 text-sm text-gray-500'>
-            {user.Rol === 'admin' 
+            {isAdmin 
               ? 'Comienza subiendo tu primer documento seguro.' 
               : 'Contacta al administrador para solicitar acceso a documentos.'
             }
           </p>
-          {user.Rol === 'admin' && (
+          {isAdmin && (
             <div className='mt-6'>
               <Link
                 href='/upload'
@@ -323,10 +330,16 @@ const FileList: React.FC = () => {
                             </span>
                           )}
                           
-                          {user.Rol !== 'admin' && (
+                          {!isAdmin && (
                             <span className='ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800'>
                               <Eye className='h-3 w-3 mr-1' />
                               Solo lectura
+                            </span>
+                          )}
+
+                          {isAdmin && (
+                            <span className='ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800'>
+                              Admin
                             </span>
                           )}
                         </div>
@@ -357,11 +370,12 @@ const FileList: React.FC = () => {
                     
                     {/* ✅ BOTONES DE ACCIÓN */}
                     <div className='flex items-center space-x-2 ml-4'>
-                      {/* ✅ BOTÓN VER - SOLO SI PUEDE VER */}
-                      {documento.PuedeVer !== false && (
+                      
+                      {/* ✅ 1. BOTÓN VER - SIEMPRE VISIBLE PARA ADMIN, CONDICIONAL PARA USUARIOS */}
+                      {(isAdmin || documento.PuedeVer !== false) && (
                         <button
                           type='button'
-                          onClick={() => handleViewDocument(documento)}  // ✅ SIN PASAR CLAVE
+                          onClick={() => requestKeyForAction(documento, 'view')}
                           className='inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500'
                           title='Ver documento'
                         >
@@ -369,31 +383,36 @@ const FileList: React.FC = () => {
                         </button>
                       )}
                       
-                      {/* ✅ BOTÓN COMPARTIR - SOLO ADMIN */}
-                      {user.Rol === 'admin' && (
+                      {/* ✅ 2. BOTÓN DESCARGAR - SIEMPRE VISIBLE PARA ADMIN, CONDICIONAL PARA USUARIOS */}
+                      {(isAdmin || documento.PuedeDescargar !== false) && (
                         <button
                           type='button'
-                          className='inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-gray-400 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                          title='Compartir archivo'
-                        >
-                          <Share2 className='h-4 w-4' />
-                        </button>
-                      )}
-                      
-                      {/* ✅ BOTÓN DESCARGAR - SEGÚN PERMISOS */}
-                      {documento.PuedeDescargar !== false && (
-                        <button
-                          type='button'
-                          onClick={() => handleDownload(documento)}  // ✅ SIN PASAR CLAVE
+                          onClick={() => requestKeyForAction(documento, 'download')}
                           className='inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                           title='Descargar PDF protegido con contraseña'
                         >
                           <Download className='h-4 w-4' />
                         </button>
                       )}
+
+                      {/* ✅ 3. BOTÓN COPIAR CLAVE - SOLO ADMIN */}
+                      {isAdmin && (
+                        <button
+                          type='button'
+                          onClick={() => handleCopyKey(documento)}
+                          className='inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'
+                          title='Copiar clave de descifrado'
+                        >
+                          {copiedKey === documento.DocumentoID ? (
+                            <Check className='h-4 w-4' />
+                          ) : (
+                            <Copy className='h-4 w-4' />
+                          )}
+                        </button>
+                      )}
                       
-                      {/* ✅ BOTÓN ELIMINAR - SOLO ADMIN */}
-                      {user.Rol === 'admin' && (
+                      {/* ✅ 5. BOTÓN ELIMINAR - SOLO ADMIN */}
+                      {isAdmin && (
                         <button
                           type='button'
                           onClick={() => handleDelete(documento.DocumentoID)}
@@ -401,25 +420,6 @@ const FileList: React.FC = () => {
                           title='Eliminar archivo'
                         >
                           <Trash2 className='h-4 w-4' />
-                        </button>
-                      )}
-                      
-                      {/* ✅ BOTÓN COPIAR CLAVE - SOLO ADMIN */}
-                      {user.Rol === 'admin' && (
-                        <button
-                          type='button'
-                          onClick={() => {
-                            if (documento.ClaveUsuarioCifrada) {
-                              navigator.clipboard.writeText(documento.ClaveUsuarioCifrada);
-                              toast.success('Clave cifrada copiada al portapapeles');
-                            } else {
-                              toast.error('No hay clave de descifrado disponible');
-                            }
-                          }}
-                          className='inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-gray-400 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                          title='Copiar clave cifrada de descifrado'
-                        >
-                          <Lock className='h-4 w-4' />
                         </button>
                       )}
                     </div>
@@ -431,6 +431,11 @@ const FileList: React.FC = () => {
                       <p className='text-xs text-gray-600'>
                         <strong>Checksum SHA-256:</strong> {documento.Checksum.substring(0, 32)}...
                       </p>
+                      {isAdmin && documento.ClaveUsuarioCifrada && (
+                        <p className='text-xs text-gray-600 mt-1'>
+                          <strong>Clave cifrada:</strong> {documento.ClaveUsuarioCifrada.substring(0, 32)}...
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
