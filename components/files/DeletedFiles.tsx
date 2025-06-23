@@ -27,7 +27,12 @@ export default function DeletedFiles() {
     try {
       setIsLoading(true);
       const data = await fileService.getDeletedFiles();
-      setDeletedFiles(data); 
+      // Mapear para asegurar que TamañoArchivo siempre es number
+      const mapped: DeletedDocument[] = data.map((doc) => ({
+        ...doc,
+        TamañoArchivo: doc.TamañoArchivo ?? 0, // Si es undefined, poner 0
+      }));
+      setDeletedFiles(mapped);
     } catch (error) {
       toast.error('Error cargando archivos eliminados');
       console.error('Error:', error);
@@ -64,28 +69,6 @@ export default function DeletedFiles() {
     }
   };
 
-  // ✅ NUEVO: Eliminar todos los documentos
-  const handleDeleteAll = async (permanent: boolean = false) => {
-    try {
-      await fileService.deleteAllDocuments({
-        deleteFiles: true,
-        permanent
-      });
-      
-      toast.success(permanent ? 
-        'Todos los documentos eliminados permanentemente' : 
-        'Todos los documentos marcados como inactivos'
-      );
-      
-      loadDeletedFiles();
-      setShowDeleteAllModal(false);
-      
-    } catch (error) {
-      toast.error('Error eliminando todos los documentos');
-      console.error('Error:', error);
-    }
-  };
-
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -114,13 +97,6 @@ export default function DeletedFiles() {
         </div>
         
         <div className="flex space-x-3">
-          <button
-            onClick={() => setShowDeleteAllModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
-            Eliminar Todos
-          </button>
           
           <button
             onClick={loadDeletedFiles}
@@ -205,18 +181,7 @@ export default function DeletedFiles() {
                 </p>
               </div>
               <div className="flex flex-col space-y-3 px-4 py-3">
-                <button
-                  onClick={() => handleDeleteAll(false)}
-                  className="px-4 py-2 bg-yellow-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                >
-                  Marcar como Inactivos (Reversible)
-                </button>
-                <button
-                  onClick={() => handleDeleteAll(true)}
-                  className="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
-                >
-                  Eliminar Permanentemente (Irreversible)
-                </button>
+
                 <button
                   onClick={() => setShowDeleteAllModal(false)}
                   className="px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"

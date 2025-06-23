@@ -29,13 +29,14 @@ export const fileService = {
     }
   },
 
+  //subir el documento
   async uploadFile(file: File, nombre?: string): Promise<Documento> {
     try {
       const formData = new FormData();
       formData.append('file', file);
       if (nombre) formData.append('nombre', nombre);
 
-      const response = await api.post('/pdfs/upload', formData, {
+      const response = await api.post('/pdfs', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -63,12 +64,6 @@ export const fileService = {
       throw error;
     }
   },
-
-  // ❌ ELIMINAR: Estos métodos no funcionan sin clave
-  // async viewFile(documentoId: number): Promise<string>
-  // async downloadFile(documentoId: number): Promise<Blob>
-
-  // ✅ MÉTODOS CORREGIDOS QUE REQUIEREN CLAVE:
 
   // ✅ MÉTODO PRINCIPAL: VISUALIZAR PDF CON CLAVE
   async viewDocumentWithKey(documentoId: number, userKey: string): Promise<Blob> {
@@ -207,55 +202,31 @@ export const fileService = {
   // ✅ MÉTODO EXISTENTE: Restaurar documento
   async restoreFile(documentoId: number): Promise<void> {
     try {
-      console.log(`🔄 Restaurando documento ${documentoId}`);
-      
-      // ✅ USAR POST /api/pdfs/{id}/restore EN LUGAR DE PUT con action
-      const response = await api.post(`/pdfs/${documentoId}/restore`);
-      
+      console.log(`🔄 [FRONT] Restaurando documento ${documentoId}`);
+      const response = await api.patch(`/pdfs/${documentoId}/restore`);
+      console.log(`[FRONT] PATCH /pdfs/${documentoId}/restore status:`, response.status);
       if (response.status === 200) {
-        console.log(`✅ Documento ${documentoId} restaurado exitosamente`);
+        console.log(`✅ [FRONT] Documento ${documentoId} restaurado exitosamente`);
       }
-      
     } catch (error) {
-      console.error('❌ Error restaurando archivo:', getErrorMessage(error));
-      throw error;
-    }
-  },
-
-  // ✅ NUEVO: Eliminar todos los documentos
-  async deleteAllDocuments(options: {
-    deleteFiles?: boolean;
-    permanent?: boolean;
-  } = {}): Promise<void> {
-    try {
-      console.log(`🗑️ Eliminando todos los documentos:`, options);
-      
-      const response = await api.post('/pdfs/delete-all', options);
-      
-      if (response.status === 200) {
-        console.log(`✅ Todos los documentos eliminados exitosamente`);
-      }
-      
-    } catch (error) {
-      console.error('❌ Error eliminando todos los documentos:', getErrorMessage(error));
+      console.error('❌ [FRONT] Error restaurando archivo:', getErrorMessage(error));
       throw error;
     }
   },
 
   // ✅ NUEVO: Eliminar permanentemente un documento específico
-  async permanentDeleteDocument(documentoId: number): Promise<void> {
-    try {
-      console.log(`💀 Eliminando permanentemente documento ${documentoId}`);
-      
-      const response = await api.delete(`/pdfs/${documentoId}/permanent-delete`);
-      
-      if (response.status === 200) {
-        console.log(`✅ Documento ${documentoId} eliminado permanentemente`);
-      }
-      
-    } catch (error) {
-      console.error('❌ Error eliminando permanentemente documento:', getErrorMessage(error));
-      throw error;
+// ...existing code...
+async permanentDeleteDocument(documentoId: number): Promise<void> {
+  try {
+    console.log(`💀 Eliminando permanentemente documento ${documentoId}`);
+    // 👇 Agrega el parámetro type=permanent
+    const response = await api.delete(`/pdfs/${documentoId}?type=permanent`);
+    if (response.status === 200) {
+      console.log(`✅ Documento ${documentoId} eliminado permanentemente`);
     }
-  },
+  } catch (error) {
+    console.error('❌ Error eliminando permanentemente documento:', getErrorMessage(error));
+    throw error;
+  }
+},
 };
