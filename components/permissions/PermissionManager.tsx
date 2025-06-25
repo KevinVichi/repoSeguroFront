@@ -78,29 +78,24 @@ const PermissionManager: React.FC = () => {
   };
 
   // ✅ FUNCIÓN PARA MANEJAR CAMBIOS DE PERMISOS
-  const handlePermissionChange = (usuarioId: number, documentoId: number, tipo: 'ver' | 'descargar', valor: boolean) => {
+  const handlePermissionChange = (
+    usuarioId: number,
+    documentoId: number,
+    tipo: 'ver' | 'descargar',
+    valor: boolean
+  ) => {
     const currentPermissions = getUserPermissions(usuarioId);
     const currentDoc = currentPermissions.find(p => p.documento.DocumentoID === documentoId);
-    
+
     const puedeVer = tipo === 'ver' ? valor : (currentDoc?.puedeVer || false);
     const puedeDescargar = tipo === 'descargar' ? valor : (currentDoc?.puedeDescargar || false);
-    
-    // Si quita el permiso de ver, también quitar el de descargar
-    if (tipo === 'ver' && !valor) {
-      updatePermissionMutation.mutate({ 
-        documentoId, 
-        usuarioId, 
-        puedeVer: false, 
-        puedeDescargar: false 
-      });
-    } else {
-      updatePermissionMutation.mutate({ 
-        documentoId, 
-        usuarioId, 
-        puedeVer, 
-        puedeDescargar 
-      });
-    }
+
+    updatePermissionMutation.mutate({ 
+      documentoId, 
+      usuarioId, 
+      puedeVer, 
+      puedeDescargar 
+    });
   };
 
   // ✅ FILTRAR USUARIOS POR BÚSQUEDA
@@ -361,17 +356,14 @@ const PermissionManager: React.FC = () => {
                                     'descargar',
                                     !permissionData.puedeDescargar
                                   )}
-                                  disabled={!permissionData.puedeVer} // No puede descargar si no puede ver
                                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                    permissionData.puedeDescargar && permissionData.puedeVer 
-                                      ? 'bg-green-600' 
-                                      : 'bg-gray-200'
-                                  } ${!permissionData.puedeVer ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    permissionData.puedeDescargar ? 'bg-green-600' : 'bg-gray-200'
+                                  }`}
                                 >
                                   <span className='sr-only'>Cambiar permiso de descarga</span>
                                   <span
                                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                      permissionData.puedeDescargar && permissionData.puedeVer ? 'translate-x-6' : 'translate-x-1'
+                                      permissionData.puedeDescargar ? 'translate-x-6' : 'translate-x-1'
                                     }`}
                                   />
                                 </button>

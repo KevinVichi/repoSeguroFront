@@ -372,7 +372,8 @@ const FileList: React.FC = () => {
                     <div className='flex items-center space-x-2 ml-4'>
                       
                       {/* ✅ 1. BOTÓN VER - SIEMPRE VISIBLE PARA ADMIN, CONDICIONAL PARA USUARIOS */}
-                      {(isAdmin || documento.PuedeVer !== false) && (
+                      {/* BOTÓN VER */}
+                      {(isAdmin || Boolean(documento.PuedeVer)) && (
                         <button
                           type='button'
                           onClick={() => requestKeyForAction(documento, 'view')}
@@ -383,8 +384,8 @@ const FileList: React.FC = () => {
                         </button>
                       )}
                       
-                      {/* ✅ 2. BOTÓN DESCARGAR - SIEMPRE VISIBLE PARA ADMIN, CONDICIONAL PARA USUARIOS */}
-                      {(isAdmin || documento.PuedeDescargar !== false) && (
+                      {/* BOTÓN DESCARGAR */}
+                      {(isAdmin || Boolean(documento.PuedeDescargar)) && (
                         <button
                           type='button'
                           onClick={() => requestKeyForAction(documento, 'download')}

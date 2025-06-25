@@ -203,7 +203,7 @@ const FileUpload: React.FC = () => {
                     type='text'
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
+                    className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-700'
                     placeholder='Ingresa un nombre personalizado para el documento'
                   />
                   <p className='mt-1 text-sm text-gray-500'>
