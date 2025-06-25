@@ -472,7 +472,7 @@ const FileList: React.FC = () => {
                       value={userKey}
                       onChange={(e) => setUserKey(e.target.value)}
                       placeholder="Ingresa tu clave de descifrado"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       onKeyPress={(e) => e.key === 'Enter' && handleActionWithKey()}
                       disabled={isProcessing}
                     />

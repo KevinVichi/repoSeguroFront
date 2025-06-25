@@ -6,10 +6,13 @@ import { useForm } from 'react-hook-form';
 import { 
   User, 
   Key,
-  Save
+  Save,
+  ShieldCheck
 } from 'lucide-react';
 import { authService } from '../../lib/services/authService';
 import { TwoFactorSetup } from '../../types';
+import { auditService } from '@/lib/services/auditService';
+
 
 interface ProfileFormData {
   nombre: string;
@@ -32,6 +35,12 @@ const UserSettings: React.FC = () => {
     queryFn: authService.getProfile
   });
 
+  const { data: auditLog, isLoading: isAuditLoading } = useQuery({
+  queryKey: ['auditLog'],
+  queryFn: auditService.getAuditLog,
+  enabled: activeTab === 'audit', // Solo carga cuando la pestaña está activa
+});
+
   const { register: registerProfile, handleSubmit: handleProfileSubmit, formState: { errors: profileErrors } } = useForm<ProfileFormData>({
     defaultValues: {
       nombre: user?.Nombre || '',
@@ -46,6 +55,7 @@ const UserSettings: React.FC = () => {
   const tabs = [
     { id: 'profile', name: 'Perfil', icon: User },
     { id: 'password', name: 'Contraseña', icon: Key },
+    { id: 'audit', name: 'Auditoria', icon: ShieldCheck}
   ];
 
   if (isLoading) {
@@ -124,7 +134,7 @@ const UserSettings: React.FC = () => {
                   {...registerProfile('nombre', { required: 'El nombre es requerido' })}
                   type='text'
                   aria-describedby={profileErrors.nombre ? 'nombre-error' : undefined}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
+                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
                 />
                 {profileErrors.nombre && (
                   <p id='nombre-error' role='alert' className='mt-1 text-sm text-red-600'>
@@ -145,7 +155,7 @@ const UserSettings: React.FC = () => {
                   })}
                   type='email'
                   aria-describedby={profileErrors.correo ? 'correo-error' : undefined}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
+                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
                 />
                 {profileErrors.correo && (
                   <p id='correo-error' role='alert' className='mt-1 text-sm text-red-600'>
@@ -206,7 +216,7 @@ const UserSettings: React.FC = () => {
                   {...registerPassword('currentPassword', { required: 'La contraseña actual es requerida' })}
                   type='password'
                   aria-describedby={passwordErrors.currentPassword ? 'currentPassword-error' : undefined}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
+                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
                 />
                 {passwordErrors.currentPassword && (
                   <p id='currentPassword-error' role='alert' className='mt-1 text-sm text-red-600'>
@@ -227,7 +237,7 @@ const UserSettings: React.FC = () => {
                   })}
                   type='password'
                   aria-describedby={passwordErrors.newPassword ? 'newPassword-error' : 'newPassword-help'}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
+                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
                 />
                 {passwordErrors.newPassword ? (
                   <p id='newPassword-error' role='alert' className='mt-1 text-sm text-red-600'>
@@ -252,7 +262,7 @@ const UserSettings: React.FC = () => {
                   })}
                   type='password'
                   aria-describedby={passwordErrors.confirmPassword ? 'confirmPassword-error' : undefined}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
+                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
                 />
                 {passwordErrors.confirmPassword && (
                   <p id='confirmPassword-error' role='alert' className='mt-1 text-sm text-red-600'>
@@ -273,6 +283,49 @@ const UserSettings: React.FC = () => {
             </form>
           </div>
         )}
+
+        {activeTab === 'audit' && (
+        <div
+          id='audit-panel'
+          role='tabpanel'
+          aria-labelledby='audit-tab'
+          tabIndex={0}
+          className='px-4 py-5 sm:p-6 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+        >
+          <h3 className='text-lg leading-6 font-medium text-gray-900 mb-4'>
+            Registro de Auditoría
+          </h3>
+          {isAuditLoading ? (
+            <div>Cargando auditoría...</div>
+          ) : (
+            <div className='overflow-x-auto'>
+              <table className='min-w-full divide-y divide-gray-200'>
+                <thead>
+                  <tr>
+                    <th className='px-4 text-gray-800 py-2'>Fecha</th>
+                    <th className='px-4 text-gray-800 py-2'>Usuario</th>
+                    <th className='px-4 text-gray-800 py-2'>Base de datos</th>
+                    <th className='px-4 text-gray-800 py-2'>Objeto</th>
+                    <th className='px-4 text-gray-800 py-2'>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLog?.map((row: { event_time: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; server_principal_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; database_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; object_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; statement: string | any[]; }, idx: React.Key | null | undefined) => (
+                    <tr key={idx}>
+                      <td className='px-4 text-gray-800 py-2'>{row.event_time}</td>
+                      <td className='px-4 text-gray-800 py-2'>{row.server_principal_name}</td>
+                      <td className='px-4 text-gray-800 py-2'>{row.database_name}</td>
+                      <td className='px-4 text-gray-800 py-2'>{row.object_name}</td>
+                      <td className='px-4 text-gray-800 py-2'>{row.statement?.slice(0, 50) ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       </div>
     </div>
   );

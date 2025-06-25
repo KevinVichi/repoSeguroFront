@@ -131,10 +131,9 @@ const FileUpload: React.FC = () => {
             </h3>
             <div className='mt-2 text-sm text-blue-700'>
               <ul className='list-disc list-inside space-y-1'>
-                <li>Cifrado AES-256 antes del almacenamiento</li>
+                <li>Cifrado con Vigennere y Affin antes del almacenamiento</li>
                 <li>Verificación de integridad con checksum SHA-256</li>
                 <li>Solo archivos PDF permitidos</li>
-                <li>Tamaño máximo: 50MB por archivo</li>
               </ul>
             </div>
           </div>
