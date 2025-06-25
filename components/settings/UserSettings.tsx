@@ -323,7 +323,7 @@ const UserSettings: React.FC = () => {
                         <td className='px-4 text-gray-800 py-2'>{row.server_principal_name}</td>
                         <td className='px-4 text-gray-800 py-2'>{row.database_name}</td>
                         <td className='px-4 text-gray-800 py-2'>{row.object_name}</td>
-                        <td className='px-4 text-gray-800 py-2'>{row.statement?.slice(0, 50) ?? '-'}</td>
+                        <td className='px-4 text-gray-800 py-2'>{row.statement ?? '-'}</td>
                       </tr>
                     ))}
                   </tbody>
