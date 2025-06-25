@@ -27,8 +27,8 @@ interface PasswordFormData {
 
 const UserSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
-  const [] = useState<TwoFactorSetup | null>(null);
-  const [] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1); // Página actual para la auditoría
+  const rowsPerPage = 10;
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -40,6 +40,12 @@ const UserSettings: React.FC = () => {
   queryFn: auditService.getAuditLog,
   enabled: activeTab === 'audit', // Solo carga cuando la pestaña está activa
 });
+
+  const paginatedAuditLog = auditLog
+  ? auditLog.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+  : [];
+
+  const totalPages = auditLog ? Math.ceil(auditLog.length / rowsPerPage) : 1;
 
   const { register: registerProfile, handleSubmit: handleProfileSubmit, formState: { errors: profileErrors } } = useForm<ProfileFormData>({
     defaultValues: {
@@ -298,30 +304,52 @@ const UserSettings: React.FC = () => {
           {isAuditLoading ? (
             <div>Cargando auditoría...</div>
           ) : (
-            <div className='overflow-x-auto'>
-              <table className='min-w-full divide-y divide-gray-200'>
-                <thead>
-                  <tr>
-                    <th className='px-4 text-gray-800 py-2'>Fecha</th>
-                    <th className='px-4 text-gray-800 py-2'>Usuario</th>
-                    <th className='px-4 text-gray-800 py-2'>Base de datos</th>
-                    <th className='px-4 text-gray-800 py-2'>Objeto</th>
-                    <th className='px-4 text-gray-800 py-2'>Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditLog?.map((row: { event_time: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; server_principal_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; database_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; object_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; statement: string | any[]; }, idx: React.Key | null | undefined) => (
-                    <tr key={idx}>
-                      <td className='px-4 text-gray-800 py-2'>{row.event_time}</td>
-                      <td className='px-4 text-gray-800 py-2'>{row.server_principal_name}</td>
-                      <td className='px-4 text-gray-800 py-2'>{row.database_name}</td>
-                      <td className='px-4 text-gray-800 py-2'>{row.object_name}</td>
-                      <td className='px-4 text-gray-800 py-2'>{row.statement?.slice(0, 50) ?? '-'}</td>
+            <>
+              <div className='overflow-x-auto'>
+                <table className='min-w-full divide-y divide-gray-200'>
+                  <thead>
+                    <tr>
+                      <th className='px-4 text-gray-800 py-2'>Fecha</th>
+                      <th className='px-4 text-gray-800 py-2'>Usuario</th>
+                      <th className='px-4 text-gray-800 py-2'>Base de datos</th>
+                      <th className='px-4 text-gray-800 py-2'>Objeto</th>
+                      <th className='px-4 text-gray-800 py-2'>Acción</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {paginatedAuditLog.map((row: { event_time: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; server_principal_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; database_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; object_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; statement: string | any[]; }, idx: React.Key | null | undefined) => (
+                      <tr key={idx}>
+                        <td className='px-4 text-gray-800 py-2'>{row.event_time}</td>
+                        <td className='px-4 text-gray-800 py-2'>{row.server_principal_name}</td>
+                        <td className='px-4 text-gray-800 py-2'>{row.database_name}</td>
+                        <td className='px-4 text-gray-800 py-2'>{row.object_name}</td>
+                        <td className='px-4 text-gray-800 py-2'>{row.statement?.slice(0, 50) ?? '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Navegación de páginas */}
+              <div className="flex justify-between items-center mt-4">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 text-gray-900"
+                >
+                  Anterior
+                </button>
+                <span className="text-blue-600">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 text-gray-900"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}
