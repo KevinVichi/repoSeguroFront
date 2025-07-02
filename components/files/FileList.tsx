@@ -70,7 +70,7 @@ const FileList: React.FC = () => {
   // ✅ VERIFICAR SI EL USUARIO ES ADMIN
   const isAdmin = React.useMemo(() => {
     if (!user) return false;
-    const rol = user.Rol || user.role || user.ROL;
+    const rol = user.role || user.Rol || user.ROL;
     return rol === 'admin' || rol === 'Admin' || rol === 'ADMIN';
   }, [user]);
 
@@ -258,7 +258,9 @@ const FileList: React.FC = () => {
           </p>
           {/* ✅ DEBUG INFO */}
           <p className='mt-1 text-xs text-gray-500'>
-            Usuario: {user?.Nombre || 'No identificado'} | Rol: {user?.Rol || 'Sin rol'} | Admin: {isAdmin ? 'Sí' : 'No'}
+              Usuario: {user?.nombre || user?.Nombre || 'No identificado'} | 
+              Rol: {user?.role || user?.Rol || 'Sin rol'} | 
+              Admin: {isAdmin ? 'Sí' : 'No'}
           </p>
         </div>
         <div className='mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex items-center space-x-3'>

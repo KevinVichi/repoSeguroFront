@@ -5,12 +5,11 @@ import { useQuery} from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { 
   User, 
-  Key,
-  Save,
-  ShieldCheck
+  ShieldCheck,
+  Mail,
+  Shield
 } from 'lucide-react';
 import { authService } from '../../lib/services/authService';
-import { TwoFactorSetup } from '../../types';
 import { auditService } from '@/lib/services/auditService';
 
 
@@ -19,15 +18,9 @@ interface ProfileFormData {
   correo: string;
 }
 
-interface PasswordFormData {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
 const UserSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
-  const [currentPage, setCurrentPage] = useState(1); // Página actual para la auditoría
+  const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
   const { data: user, isLoading } = useQuery({
@@ -35,33 +28,39 @@ const UserSettings: React.FC = () => {
     queryFn: authService.getProfile
   });
 
+  // ✅ VERIFICAR SI EL USUARIO ES ADMIN
+  const isAdmin = React.useMemo(() => {
+    if (!user) return false;
+    const rol = user.Rol ;
+    return rol === 'admin';
+  }, [user]);
+
+  // ✅ SOLO CARGAR AUDITORÍA SI ES ADMIN
   const { data: auditLog, isLoading: isAuditLoading } = useQuery({
-  queryKey: ['auditLog'],
-  queryFn: auditService.getAuditLog,
-  enabled: activeTab === 'audit', // Solo carga cuando la pestaña está activa
-});
+    queryKey: ['auditLog'],
+    queryFn: auditService.getAuditLog,
+    enabled: activeTab === 'audit' && isAdmin, // ✅ Solo si es admin Y la pestaña está activa
+  });
 
   const paginatedAuditLog = auditLog
-  ? auditLog.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
-  : [];
+    ? auditLog.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+    : [];
 
   const totalPages = auditLog ? Math.ceil(auditLog.length / rowsPerPage) : 1;
 
-  const { register: registerProfile, handleSubmit: handleProfileSubmit, formState: { errors: profileErrors } } = useForm<ProfileFormData>({
-    defaultValues: {
-      nombre: user?.Nombre || '',
-      correo: user?.Correo || ''
-    }
-  });
+  // ✅ ELIMINAR HOOKS DE FORMULARIO YA QUE NO LOS USAS
+  // const { register: registerProfile, handleSubmit: handleProfileSubmit, formState: { errors: profileErrors } } = useForm<ProfileFormData>({
+  //   defaultValues: {
+  //     nombre: user?.Nombre || '',
+  //     correo: user?.Correo || ''
+  //   }
+  // });
 
-  const { register: registerPassword, handleSubmit: handlePasswordSubmit, formState: { errors: passwordErrors }, watch } = useForm<PasswordFormData>();
-
-  const watchNewPassword = watch('newPassword');
-
+  // ✅ TABS DINÁMICOS SEGÚN EL ROL
   const tabs = [
     { id: 'profile', name: 'Perfil', icon: User },
-    { id: 'password', name: 'Contraseña', icon: Key },
-    { id: 'audit', name: 'Auditoria', icon: ShieldCheck}
+    // ✅ Solo mostrar auditoría para administradores
+    ...(isAdmin ? [{ id: 'audit', name: 'Auditoría', icon: ShieldCheck }] : [])
   ];
 
   if (isLoading) {
@@ -76,9 +75,6 @@ const UserSettings: React.FC = () => {
     <div className='max-w-4xl mx-auto'>
       <div className='mb-8'>
         <h1 className='text-2xl font-semibold text-gray-900'>Configuración</h1>
-        <p className='mt-2 text-sm text-gray-700'>
-          Gestiona tu perfil y configuraciones de seguridad
-        </p>
       </div>
 
       {/* Tabs */}
@@ -88,7 +84,7 @@ const UserSettings: React.FC = () => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
-                <button
+              <button
                 key={tab.id}
                 type='button'
                 onClick={() => setActiveTab(tab.id)}
@@ -96,18 +92,17 @@ const UserSettings: React.FC = () => {
                 aria-selected={isActive ? "true" : "false"}
                 aria-controls={`${tab.id}-panel`}
                 tabIndex={isActive ? 0 : -1}
-                id={`${tab.id}-tab`}                              // ✅ ID para referenciar desde panel
-                aria-label={`Pestaña ${tab.name}`}                // ✅ ETIQUETA DESCRIPTIVA
-                title={`Cambiar a ${tab.name}`}                   // ✅ TOOLTIP INFORMATIVO
+                id={`${tab.id}-tab`}
+                aria-label={`Pestaña ${tab.name}`}
+                title={`Cambiar a ${tab.name}`}
                 className={`${
                   isActive
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-t-md`} // ✅ AGREGADO rounded-t-md
+                } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-t-md`}
               >
                 <Icon className='h-5 w-5 mr-2' aria-hidden='true' />
                 {tab.name}
-                {/* ✅ INDICADOR VISUAL PARA LECTORES DE PANTALLA */}
                 {isActive && (
                   <span className='sr-only'>(pestaña activa)</span>
                 )}
@@ -123,237 +118,123 @@ const UserSettings: React.FC = () => {
           <div 
             id='profile-panel' 
             role='tabpanel' 
-            aria-labelledby='profile-tab'     // ✅ REFERENCIA AL TAB
-            tabIndex={0}                      // ✅ HACER FOCUSABLE
-            className='px-4 py-5 sm:p-6 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500' // ✅ ESTILOS DE FOCO
+            aria-labelledby='profile-tab'
+            tabIndex={0}
+            className='px-4 py-5 sm:p-6 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
           >
             <h3 className='text-lg leading-6 font-medium text-gray-900 mb-4'>
               Información del Perfil
             </h3>
-            <form onSubmit={handleProfileSubmit(() => {})} className='space-y-4'>
+
+            {/* ✅ SIMPLIFICAR SIN FORMULARIO */}
+            <div className='space-y-4'>
               <div>
-                <label htmlFor='nombre' className='block text-sm font-medium text-gray-700'>
+                <label className='block text-sm font-medium text-gray-700 mb-2'>
+                  <User className='inline h-4 w-4 mr-2' />
                   Nombre completo
                 </label>
-                <input
-                  id='nombre'
-                  {...registerProfile('nombre', { required: 'El nombre es requerido' })}
-                  type='text'
-                  aria-describedby={profileErrors.nombre ? 'nombre-error' : undefined}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
-                />
-                {profileErrors.nombre && (
-                  <p id='nombre-error' role='alert' className='mt-1 text-sm text-red-600'>
-                    {profileErrors.nombre.message}
-                  </p>
-                )}
+                <div className='px-3 py-2 border border-gray-300 bg-gray-50 rounded-md shadow-sm text-gray-900'>
+                  {user?.Nombre || 'No especificado'}
+                </div>
               </div>
 
               <div>
-                <label htmlFor='correo' className='block text-sm font-medium text-gray-700'>
+                <label className='block text-sm font-medium text-gray-700 mb-2'>
+                  <Mail className='inline h-4 w-4 mr-2' />
                   Correo electrónico
                 </label>
-                <input
-                  id='correo'
-                  {...registerProfile('correo', { 
-                    required: 'El correo es requerido',
-                    pattern: { value: /^\S+@\S+$/i, message: 'Correo inválido' }
-                  })}
-                  type='email'
-                  aria-describedby={profileErrors.correo ? 'correo-error' : undefined}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
-                />
-                {profileErrors.correo && (
-                  <p id='correo-error' role='alert' className='mt-1 text-sm text-red-600'>
-                    {profileErrors.correo.message}
-                  </p>
-                )}
+                <div className='px-3 py-2 border border-gray-300 bg-gray-50 rounded-md shadow-sm text-gray-900'>
+                  {user?.Correo || 'No especificado'}
+                </div>
               </div>
 
               <div>
-                <label htmlFor='rol' className='block text-sm font-medium text-gray-700'>
-                  Rol
+                <label className='block text-sm font-medium text-gray-700 mb-2'>
+                  <Shield className='inline h-4 w-4 mr-2' />
+                  Rol del usuario
                 </label>
-                <input
-                  id='rol'
-                  type='text'
-                  value={user?.Rol || ''}
-                  disabled
-                  aria-label='Rol del usuario (solo lectura)'
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-50 text-gray-500 sm:text-sm'
-                />
-                <p className='mt-1 text-sm text-gray-500'>
-                  El rol no puede ser modificado
-                </p>
+                <div className='px-3 py-2 border border-gray-300 bg-gray-50 rounded-md shadow-sm'>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    isAdmin 
+                      ? 'bg-purple-100 text-purple-800' 
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {isAdmin ? 'Administrador' : 'Usuario'}
+                  </span>
+                </div>
               </div>
-
-              <div className='flex justify-end'>
-                <button
-                  type='submit'
-                  className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                >
-                  <Save className='h-4 w-4 mr-2' />
-                  Guardar cambios
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         )}
 
-        {activeTab === 'password' && (
-          <div 
-            id='password-panel' 
-            role='tabpanel' 
-            aria-labelledby='password-tab'    // ✅ REFERENCIA AL TAB
-            tabIndex={0}                      // ✅ HACER FOCUSABLE
+        {/* ✅ AUDITORÍA SOLO PARA ADMIN */}
+        {activeTab === 'audit' && isAdmin && (
+          <div
+            id='audit-panel'
+            role='tabpanel'
+            aria-labelledby='audit-tab'
+            tabIndex={0}
             className='px-4 py-5 sm:p-6 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
           >
             <h3 className='text-lg leading-6 font-medium text-gray-900 mb-4'>
-              Cambiar Contraseña
+              Registro de Auditoría
             </h3>
-            
-            <form onSubmit={handlePasswordSubmit(() => {})} className='space-y-4'>
-              <div>
-                <label htmlFor='currentPassword' className='block text-sm font-medium text-gray-700'>
-                  Contraseña actual
-                </label>
-                <input
-                  id='currentPassword'
-                  {...registerPassword('currentPassword', { required: 'La contraseña actual es requerida' })}
-                  type='password'
-                  aria-describedby={passwordErrors.currentPassword ? 'currentPassword-error' : undefined}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
-                />
-                {passwordErrors.currentPassword && (
-                  <p id='currentPassword-error' role='alert' className='mt-1 text-sm text-red-600'>
-                    {passwordErrors.currentPassword.message}
-                  </p>
-                )}
+            {isAuditLoading ? (
+              <div className='flex items-center justify-center h-32'>
+                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600'></div>
+                <span className='ml-2 text-gray-600'>Cargando auditoría...</span>
               </div>
-
-              <div>
-                <label htmlFor='newPassword' className='block text-sm font-medium text-gray-700'>
-                  Nueva contraseña
-                </label>
-                <input
-                  id='newPassword'
-                  {...registerPassword('newPassword', { 
-                    required: 'La nueva contraseña es requerida',
-                    minLength: { value: 6, message: 'Mínimo 6 caracteres' }
-                  })}
-                  type='password'
-                  aria-describedby={passwordErrors.newPassword ? 'newPassword-error' : 'newPassword-help'}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
-                />
-                {passwordErrors.newPassword ? (
-                  <p id='newPassword-error' role='alert' className='mt-1 text-sm text-red-600'>
-                    {passwordErrors.newPassword.message}
-                  </p>
-                ) : (
-                  <p id='newPassword-help' className='mt-1 text-sm text-gray-500'>
-                    Debe tener al menos 6 caracteres
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor='confirmPassword' className='block text-sm font-medium text-gray-700'>
-                  Confirmar nueva contraseña
-                </label>
-                <input
-                  id='confirmPassword'
-                  {...registerPassword('confirmPassword', { 
-                    required: 'Confirma la nueva contraseña',
-                    validate: value => value === watchNewPassword || 'Las contraseñas no coinciden'
-                  })}
-                  type='password'
-                  aria-describedby={passwordErrors.confirmPassword ? 'confirmPassword-error' : undefined}
-                  className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900'
-                />
-                {passwordErrors.confirmPassword && (
-                  <p id='confirmPassword-error' role='alert' className='mt-1 text-sm text-red-600'>
-                    {passwordErrors.confirmPassword.message}
-                  </p>
-                )}
-              </div>
-
-              <div className='flex justify-end'>
-                <button
-                  type='submit'
-                  className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                >
-                  <Key className='h-4 w-4 mr-2' />
-                  Cambiar contraseña
-                </button>
-              </div>
-            </form>
+            ) : (
+              <>
+                <div className='overflow-x-auto'>
+                  <table className='min-w-full divide-y divide-gray-200'>
+                    <thead className='bg-gray-50'>
+                      <tr>
+                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Fecha</th>
+                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Usuario</th>
+                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Base de datos</th>
+                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Objeto</th>
+                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className='bg-white divide-y divide-gray-200'>
+                      {paginatedAuditLog.map((row: any, idx: number) => (
+                        <tr key={idx} className='hover:bg-gray-50'>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>{row.event_time}</td>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>{row.server_principal_name}</td>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>{row.database_name}</td>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>{row.object_name}</td>
+                          <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>{row.statement || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Navegación de páginas */}
+                <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Anterior
+                  </button>
+                  <span className="text-sm text-gray-700">
+                    Página <span className='font-medium'>{currentPage}</span> de <span className='font-medium'>{totalPages}</span>
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
-
-        {activeTab === 'audit' && (
-        <div
-          id='audit-panel'
-          role='tabpanel'
-          aria-labelledby='audit-tab'
-          tabIndex={0}
-          className='px-4 py-5 sm:p-6 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-        >
-          <h3 className='text-lg leading-6 font-medium text-gray-900 mb-4'>
-            Registro de Auditoría
-          </h3>
-          {isAuditLoading ? (
-            <div>Cargando auditoría...</div>
-          ) : (
-            <>
-              <div className='overflow-x-auto'>
-                <table className='min-w-full divide-y divide-gray-200'>
-                  <thead>
-                    <tr>
-                      <th className='px-4 text-gray-800 py-2'>Fecha</th>
-                      <th className='px-4 text-gray-800 py-2'>Usuario</th>
-                      <th className='px-4 text-gray-800 py-2'>Base de datos</th>
-                      <th className='px-4 text-gray-800 py-2'>Objeto</th>
-                      <th className='px-4 text-gray-800 py-2'>Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedAuditLog.map((row: { event_time: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; server_principal_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; database_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; object_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; statement: string | any[]; }, idx: React.Key | null | undefined) => (
-                      <tr key={idx}>
-                        <td className='px-4 text-gray-800 py-2'>{row.event_time}</td>
-                        <td className='px-4 text-gray-800 py-2'>{row.server_principal_name}</td>
-                        <td className='px-4 text-gray-800 py-2'>{row.database_name}</td>
-                        <td className='px-4 text-gray-800 py-2'>{row.object_name}</td>
-                        <td className='px-4 text-gray-800 py-2'>{row.statement ?? '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Navegación de páginas */}
-              <div className="flex justify-between items-center mt-4">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 text-gray-900"
-                >
-                  Anterior
-                </button>
-                <span className="text-blue-600">
-                  Página {currentPage} de {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 text-gray-900"
-                >
-                  Siguiente
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
       </div>
     </div>
   );

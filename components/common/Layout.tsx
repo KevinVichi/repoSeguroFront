@@ -194,7 +194,7 @@ const SidebarContent = React.memo<{
               {user.Nombre || user.nombre || 'Usuario'}
             </p>
             <p className='text-xs text-gray-500'>
-              {user.Rol || user.role || 'Sin rol'} • {user.Correo || user.email || 'Sin email'}
+              {user.Rol || user.role || 'Sin rol'} • {user.correo || 'Sin correo'}
             </p>
           </div>
         )}
