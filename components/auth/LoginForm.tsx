@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '../../lib/services/authService';
 import toast from 'react-hot-toast';
+import { FieldProtection } from '../../lib/security/fieldProtection';
 
 interface LoginFormData {
   correo: string;
@@ -21,7 +22,29 @@ const LoginForm: React.FC = () => {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      const response = await authService.login(data.correo, data.password, data.twoFactorCode);
+      // 🛡️ OFUSCAR CREDENCIALES ANTES DE ENVIAR
+      const protectedData = {
+        // Campos ofuscados
+        usr: FieldProtection.obfuscateField(data.correo, 'email'),
+        pwd: FieldProtection.obfuscateField(data.password, 'password'),
+        mfa: data.twoFactorCode ? FieldProtection.obfuscateField(data.twoFactorCode, 'twofa') : undefined,
+        
+        // Metadata de seguridad
+        ts: FieldProtection.addTimestamp(),
+        fp: navigator.userAgent.slice(0, 20), // Fingerprint básico
+        
+        // Flag para el backend
+        _protected: true
+      };
+
+      console.log('🔒 Enviando datos protegidos:', {
+        hasUsr: !!protectedData.usr,
+        hasPwd: !!protectedData.pwd,
+        hasMfa: !!protectedData.mfa,
+        timestamp: protectedData.ts
+      });
+
+      const response = await authService.loginProtected(protectedData);
       
       if (response.requires2FA) {
         setRequires2FA(true);

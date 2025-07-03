@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '../../lib/services/authService';
 import { twoFactorService } from '../../lib/services/twoFactorService';
+import { FieldProtection } from '../../lib/security/fieldProtection'; // ✅ AÑADIR ESTA IMPORTACIÓN
 import toast from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 
@@ -33,7 +34,7 @@ const RegisterForm: React.FC = () => {
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
-  // ✅ PASO 1: REGISTRO INICIAL
+  // ✅ PASO 1: REGISTRO INICIAL - MODIFICADO PARA USAR PROTECCIÓN
   const onSubmit = async (data: RegisterFormData) => {
     try {
       if (data.password !== data.confirmPassword) {
@@ -41,21 +42,43 @@ const RegisterForm: React.FC = () => {
         return;
       }
 
-      const response = await authService.register(data.nombre, data.correo, data.password);
+      // 🛡️ OFUSCAR DATOS DE REGISTRO ANTES DE ENVIAR
+      const protectedData = {
+        // Campos ofuscados
+        nm: FieldProtection.obfuscateField(data.nombre, 'name'),
+        usr: FieldProtection.obfuscateField(data.correo, 'email'),
+        pwd: FieldProtection.obfuscateField(data.password, 'password'),
+        
+        // Metadata de seguridad
+        ts: FieldProtection.addTimestamp(),
+        fp: navigator.userAgent.slice(0, 20),
+        
+        // Flag para el backend
+        _protected: true
+      };
+
+      console.log('🔒 Enviando registro protegido:', {
+        hasName: !!protectedData.nm,
+        hasUsr: !!protectedData.usr,
+        hasPwd: !!protectedData.pwd,
+        timestamp: protectedData.ts
+      });
+
+      // ✅ USAR MÉTODO PROTEGIDO EN LUGAR DEL TRADICIONAL
+      const response = await authService.registerProtected(protectedData);
       
       // ✅ VERIFICAR SI REQUIERE 2FA OBLIGATORIO
       if (response.requiresTwoFactorSetup) {
         toast.success('Cuenta creada exitosamente');
-        toast.loading('Configurando 2FA obligatorio...', { duration: 2000 }); // ✅ CAMBIAR AQUÍ
+        toast.loading('Configurando 2FA obligatorio...', { duration: 2000 });
         
         // ✅ GUARDAR TOKEN TEMPORAL Y CONTINUAR
-        localStorage.setItem('temp_token', response.token);
+        localStorage.setItem('temp_token', response.token ?? '');
         setStep('setup2fa');
         await setup2FA();
       } else {
         // ✅ REGISTRO TRADICIONAL (FALLBACK)
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
+        localStorage.setItem('token', response.token ?? '');
         toast.success('Registro exitoso');
         router.push('/files');
       }
@@ -92,7 +115,7 @@ const RegisterForm: React.FC = () => {
     }
   };
 
-  // ✅ PASO 3: VERIFICAR 2FA Y COMPLETAR REGISTRO
+  // ✅ PASO 3: VERIFICAR 2FA Y COMPLETAR REGISTRO - MODIFICADO PARA PROTECCIÓN
   const verify2FA = async () => {
     if (!twoFactorCode || twoFactorCode.length !== 6) {
       toast.error('Ingresa un código de 6 dígitos');
@@ -102,10 +125,10 @@ const RegisterForm: React.FC = () => {
     setIsVerifying(true);
     
     try {
-      console.log('🔐 Verificando código 2FA...');
+      console.log('🔐 Verificando código 2FA protegido...');
       
-      // ✅ LLAMAR AL ENDPOINT DE VERIFICACIÓN
-      await twoFactorService.verify2FA(twoFactorCode);
+      // 🛡️ USAR MÉTODO PROTEGIDO EN LUGAR DEL TRADICIONAL
+      await twoFactorService.verify2FAProtected(twoFactorCode);
       
       // ✅ EL twoFactorService YA MANEJA EL TOKEN Y USUARIO
       toast.success('¡2FA verificado exitosamente!');
@@ -113,6 +136,7 @@ const RegisterForm: React.FC = () => {
       
       // ✅ LIMPIAR ESTADO TEMPORAL
       localStorage.removeItem('temp_token');
+      localStorage.removeItem('temp_2fa_setup');
       
       // ✅ REDIRIGIR AL SISTEMA
       router.push('/files');
