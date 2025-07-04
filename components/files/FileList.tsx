@@ -21,11 +21,12 @@ import {
 import { fileService } from '../../lib/services/fileService';
 import { Documento } from '../../types';
 import toast from 'react-hot-toast';
+import PdfViewer from '../pdf/PdfViewer'; // ✅ YA TIENES ESTA IMPORTACIÓN
 
 const FileList: React.FC = () => {
   const queryClient = useQueryClient();
 
-  // ✅ ESTADOS PARA MODAL DE CLAVE
+  // ✅ ESTADOS PARA MODAL DE CLAVE (YA EXISTENTES)
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [documentForAction, setDocumentForAction] = useState<{
     documento: Documento;
@@ -35,7 +36,15 @@ const FileList: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedKey, setCopiedKey] = useState<number | null>(null);
 
-  // ✅ OBTENER USUARIO DESDE LOCALSTORAGE
+  // ✅ AÑADIR ESTOS ESTADOS QUE FALTAN PARA PDF VIEWER
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [pdfViewerData, setPdfViewerData] = useState<{
+    documentId: number;
+    userKey: string;
+    canDownload: boolean;
+  } | null>(null);
+
+  // ✅ OBTENER USUARIO DESDE LOCALSTORAGE (YA EXISTENTE)
   const [user, setUser] = useState<any>(null);
   
   React.useEffect(() => {
@@ -105,68 +114,17 @@ const FileList: React.FC = () => {
         toast.success('✅ Descarga iniciada');
         
       } else if (action === 'view') {
-        console.log(`📖 Abriendo PDF ${documento.DocumentoID} en nueva ventana`);
+        // ✅ USAR EL NUEVO VIEWER EN LUGAR DE WINDOW.OPEN
+        console.log(`📖 Abriendo PDF ${documento.DocumentoID} en viewer`);
         
-        const blob = await fileService.viewDocumentWithKey(
-          documento.DocumentoID, 
-          userKey.trim()
-        );
-        const url = URL.createObjectURL(blob);
+        setPdfViewerData({
+          documentId: documento.DocumentoID,
+          userKey: userKey.trim(),
+          canDownload: isAdmin || Boolean(documento.PuedeDescargar)
+        });
+        setPdfViewerOpen(true);
         
-        const newWindow = window.open(
-          url,
-          `pdf_${documento.DocumentoID}`,
-          'width=1200,height=900,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no,directories=no'
-        );
-
-        if (newWindow) {
-          newWindow.onload = () => {
-            try {
-              newWindow.document.title = `${documento.Nombre} - Solo Lectura`;
-              
-              newWindow.print = () => {
-                if (!isAdmin) {
-                  toast.error('🚫 Impresión no permitida');
-                  return;
-                }
-                window.print.call(newWindow);
-              };
-
-              newWindow.document.addEventListener('keydown', (e) => {
-                if (!isAdmin && (
-                  (e.ctrlKey && e.key === 's') || 
-                  (e.ctrlKey && e.key === 'p') || 
-                  (e.ctrlKey && e.key === 'a')    
-                )) {
-                  e.preventDefault();
-                  toast.error('🚫 Función no permitida');
-                }
-              });
-
-              if (!isAdmin) {
-                newWindow.document.addEventListener('contextmenu', (e) => {
-                  e.preventDefault();
-                  toast.error('🚫 Click derecho deshabilitado');
-                });
-              }
-              
-            } catch (error) {
-              console.log('🛡️ Protecciones limitadas por CORS');
-            }
-          };
-
-          const checkClosed = setInterval(() => {
-            if (newWindow.closed) {
-              clearInterval(checkClosed);
-              URL.revokeObjectURL(url);
-            }
-          }, 1000);
-
-          toast.success('✅ PDF abierto en nueva ventana');
-          
-        } else {
-          throw new Error('No se pudo abrir la ventana');
-        }
+        toast.success('✅ PDF abierto en viewer');
       }
       
       setIsKeyModalOpen(false);
@@ -202,6 +160,12 @@ const FileList: React.FC = () => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este archivo?')) {
       deleteFileMutation.mutate(documentoId);
     }
+  };
+
+  // ✅ FUNCIÓN PARA CERRAR EL VIEWER (YA TIENES ESTA FUNCIÓN)
+  const closePdfViewer = () => {
+    setPdfViewerOpen(false);
+    setPdfViewerData(null);
   };
 
   // ✅ UTILIDADES DE FORMATO
@@ -504,7 +468,17 @@ const FileList: React.FC = () => {
           </div>
         </div>
       )}
-
+      
+      {/* ✅ NUEVO: PDF VIEWER (YA TIENES ESTE CÓDIGO) */}
+      {pdfViewerOpen && pdfViewerData && (
+        <PdfViewer
+          documentId={pdfViewerData.documentId}
+          userKey={pdfViewerData.userKey}
+          canDownload={pdfViewerData.canDownload}
+          isAdmin={isAdmin}
+          onClose={closePdfViewer}
+        />
+      )}
     </div>
   );
 };
