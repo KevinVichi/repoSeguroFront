@@ -102,7 +102,7 @@ const FileUpload: React.FC = () => {
       try {
         await navigator.clipboard.writeText(userKey);
         toast.success('Clave copiada al portapapeles');
-      } catch (error) {
+      } catch {
         toast.error('Error al copiar la clave');
       }
     }

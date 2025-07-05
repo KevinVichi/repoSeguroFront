@@ -51,7 +51,6 @@ export const twoFactorService = {
       }
 
       // ✅ CONFIGURAR HEADER TEMPORALMENTE
-      const originalAuth = api.defaults.headers.common['Authorization'];
       api.defaults.headers.common['Authorization'] = `Bearer ${tempToken}`;
       
       // ✅ ENVIAR CÓDIGO, SECRETO Y CÓDIGOS DE RESPALDO

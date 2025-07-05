@@ -53,7 +53,7 @@ useEffect(() => {
         try {
           const workerModule = await import('pdfjs-dist/build/pdf.worker.min.mjs');
           pdfjsLib.GlobalWorkerOptions.workerSrc = workerModule.default;
-        } catch (workerError) {
+        } catch {
           console.log('⚠️ Worker module no disponible, usando CDN');
           pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
         }

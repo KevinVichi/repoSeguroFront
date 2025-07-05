@@ -149,7 +149,7 @@ const FileList: React.FC = () => {
       } else {
         toast.error('❌ No hay clave de descifrado disponible');
       }
-    } catch (error) {
+    } catch {
       toast.error('❌ Error al copiar la clave');
     }
   };

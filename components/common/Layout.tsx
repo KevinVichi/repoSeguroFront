@@ -25,13 +25,26 @@ interface NavigationItem {
   adminOnly?: boolean;
 }
 
+// ✅ DEFINIR TIPO PARA USUARIO
+interface User {
+  id?: number;
+  UsuarioID?: number;
+  nombre?: string;
+  Nombre?: string;
+  correo?: string;
+  Correo?: string;
+  role?: string;
+  Rol?: string;
+  ROL?: string;
+}
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   
-  // ✅ ESTADO PARA USUARIO
-  const [user, setUser] = useState<any>(null);
+  // ✅ ESTADO PARA USUARIO CON TIPO ESPECÍFICO
+  const [user, setUser] = useState<User | null>(null);
   const [isClient, setIsClient] = useState(false);
 
   // ✅ EFECTO OPTIMIZADO - SE EJECUTA SOLO UNA VEZ
@@ -42,12 +55,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       try {
         const userData = localStorage.getItem('user');
         if (userData) {
-          const parsedUser = JSON.parse(userData);
+          const parsedUser = JSON.parse(userData) as User;
           setUser(parsedUser);
         } else {
           setUser(null);
         }
-      } catch (error) {
+      } catch {
         setUser(null);
       }
     };
@@ -69,22 +82,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
   }, []);
 
-  const navigation: NavigationItem[] = [ 
-    { name: 'Mis Archivos', href: '/files', icon: FileText },
-    { name: 'Subir Archivo', href: '/upload', icon: Upload, adminOnly: true },
-    { name: 'Documentos Eliminados', href: '/deleted', icon: Trash2, adminOnly: true },
-    { name: 'Permisos', href: '/permissions', icon: Users, adminOnly: true },
-    { name: 'Configuración', href: '/settings', icon: Settings },
-  ];
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    router.push('/login');
-  };
-
-  // ✅ FUNCIÓN PARA VERIFICAR SI ES ADMIN (SIN LOGS)
+  // ✅ FUNCIÓN PARA VERIFICAR SI ES ADMIN
   const isAdmin = React.useMemo(() => {
     if (!user) return false;
     
@@ -93,13 +91,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return rol === 'admin' || rol === 'Admin' || rol === 'ADMIN';
   }, [user]);
 
-  // ✅ FILTRAR NAVEGACIÓN SEGÚN ROL (SIN LOGS)
+  // ✅ MOVER NAVIGATION DENTRO DE useMemo PARA EVITAR DEPENDENCIAS CAMBIANTES
   const filteredNavigation = React.useMemo(() => {
+    const navigation: NavigationItem[] = [ 
+      { name: 'Mis Archivos', href: '/files', icon: FileText },
+      { name: 'Subir Archivo', href: '/upload', icon: Upload, adminOnly: true },
+      { name: 'Documentos Eliminados', href: '/deleted', icon: Trash2, adminOnly: true },
+      { name: 'Permisos', href: '/permissions', icon: Users, adminOnly: true },
+      { name: 'Configuración', href: '/settings', icon: Settings },
+    ];
+
     return navigation.filter(item => {
       if (!item.adminOnly) return true;
       return isAdmin;
     });
-  }, [isAdmin, navigation]);
+  }, [isAdmin]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    router.push('/login');
+  };
 
   // ✅ NO RENDERIZAR HASTA QUE EL CLIENTE ESTÉ LISTO
   if (!isClient) {
@@ -173,12 +186,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
 };
 
-// ✅ COMPONENTE SIDEBAR MEMOIZADO
+// ✅ COMPONENTE SIDEBAR MEMOIZADO CON TIPOS ESPECÍFICOS
 const SidebarContent = React.memo<{
   navigation: NavigationItem[];
   currentPath: string;
   onLogout: () => void;
-  user: any;
+  user: User | null; // ✅ TIPO ESPECÍFICO EN LUGAR DE any
 }>(({ navigation, currentPath, onLogout, user }) => {
   return (
     <div className='flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-white'>
@@ -194,7 +207,7 @@ const SidebarContent = React.memo<{
               {user.Nombre || user.nombre || 'Usuario'}
             </p>
             <p className='text-xs text-gray-500'>
-              {user.Rol || user.role || 'Sin rol'} • {user.correo || 'Sin correo'}
+              {user.Rol || user.role || 'Sin rol'} • {user.correo || user.Correo || 'Sin correo'}
             </p>
           </div>
         )}
