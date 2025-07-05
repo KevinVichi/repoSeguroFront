@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { 
@@ -18,14 +18,14 @@ import {
   Check      
 } from 'lucide-react';
 import { fileService } from '../../lib/services/fileService';
-import { Documento } from '../../types';
+import { Documento, User } from '../../types'; // ✅ IMPORTAR User
 import toast from 'react-hot-toast';
-import PdfViewer from '../pdf/PdfViewer'; // ✅ YA TIENES ESTA IMPORTACIÓN
+import PdfViewer from '../pdf/PdfViewer';
 
 const FileList: React.FC = () => {
   const queryClient = useQueryClient();
 
-  // ✅ ESTADOS PARA MODAL DE CLAVE (YA EXISTENTES)
+  // ✅ ESTADOS PARA MODAL DE CLAVE
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [documentForAction, setDocumentForAction] = useState<{
     documento: Documento;
@@ -35,7 +35,7 @@ const FileList: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedKey, setCopiedKey] = useState<number | null>(null);
 
-  // ✅ AÑADIR ESTOS ESTADOS QUE FALTAN PARA PDF VIEWER
+  // ✅ ESTADOS PARA PDF VIEWER
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [pdfViewerData, setPdfViewerData] = useState<{
     documentId: number;
@@ -43,18 +43,44 @@ const FileList: React.FC = () => {
     canDownload: boolean;
   } | null>(null);
 
-  // ✅ OBTENER USUARIO DESDE LOCALSTORAGE (YA EXISTENTE)
-  const [user, setUser] = useState<any>(null);
-  
-  React.useEffect(() => {
-    try {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        setUser(JSON.parse(userData));
+  // ✅ CORREGIR LÍNEA 47 - CAMBIAR any POR User
+  const [user, setUser] = useState<User | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // ✅ USAR EL MISMO PATRÓN QUE LAYOUT
+  useEffect(() => {
+    setIsClient(true);
+    
+    const loadUser = () => {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const parsedUser = JSON.parse(userData) as User;
+          console.log('🔍 FileList - Usuario cargado:', parsedUser);
+          setUser(parsedUser);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('❌ Error cargando usuario:', error);
+        setUser(null);
       }
-    } catch (error) {
-      console.error('Error obteniendo usuario:', error);
-    }
+    };
+
+    loadUser();
+
+    // Escuchar cambios en storage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user') {
+        loadUser();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // ✅ QUERY PARA OBTENER ARCHIVOS
@@ -78,8 +104,8 @@ const FileList: React.FC = () => {
   // ✅ VERIFICAR SI EL USUARIO ES ADMIN
   const isAdmin = React.useMemo(() => {
     if (!user) return false;
-    const rol = user.role || user.Rol || user.ROL;
-    return rol === 'admin' || rol === 'Admin' || rol === 'ADMIN';
+    const rol = user.role;
+    return rol === 'admin';
   }, [user]);
 
   console.log('👤 Usuario actual:', user);
@@ -186,6 +212,15 @@ const FileList: React.FC = () => {
     });
   };
 
+  // ✅ NO RENDERIZAR HASTA QUE EL CLIENTE ESTÉ LISTO
+  if (!isClient) {
+    return (
+      <div className='flex items-center justify-center h-64'>
+        <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600'></div>
+      </div>
+    );
+  }
+
   // ✅ ESTADOS DE CARGA Y ERROR
   if (isLoading) {
     return (
@@ -221,8 +256,8 @@ const FileList: React.FC = () => {
           </p>
           {/* ✅ DEBUG INFO */}
           <p className='mt-1 text-xs text-gray-500'>
-              Usuario: {user?.nombre || user?.Nombre || 'No identificado'} | 
-              Rol: {user?.role || user?.Rol || 'Sin rol'} | 
+              Usuario: {user?.Nombre || 'No identificado'} | 
+              Rol: {user?.Rol || 'Sin rol'} | 
               Admin: {isAdmin ? 'Sí' : 'No'}
           </p>
         </div>
@@ -411,7 +446,7 @@ const FileList: React.FC = () => {
         </div>
       )}
       
-      {/* ✅ MODAL PARA INGRESAR CLAVE */}
+      {/* ✅ MODAL PARA INGRESAR CLAVE - CORREGIR LÍNEA 431 */}
       {isKeyModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -428,7 +463,7 @@ const FileList: React.FC = () => {
                   </h3>
                   <div className="mt-2">
                     <p className="text-sm text-gray-500">
-                      Para {documentForAction?.action === 'download' ? 'descargar' : 'visualizar'} "{documentForAction?.documento.Nombre}", 
+                      Para {documentForAction?.action === 'download' ? 'descargar' : 'visualizar'} &ldquo;{documentForAction?.documento.Nombre}&rdquo;, 
                       necesitas ingresar la clave de descifrado.
                     </p>
                   </div>

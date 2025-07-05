@@ -6,6 +6,12 @@
   FechaCreacion: string;
   Activo: boolean;
   TwoFactorEnabled?: boolean;
+
+    // ✅ CAMPOS DE localStorage (formato del backend)
+  id?: number;
+  nombre?: string;
+  correo?: string;
+  role?: 'admin' | 'usuario';
 }
 
 export interface Documento {
