@@ -1,5 +1,4 @@
-﻿import api from './api';
-import { User } from '../../types';
+﻿import { User } from '../../types';
 
 class AuthService {
   private API_URL = 'http://localhost:3001/api'; // ✅ USAR TU PUERTO CORRECTO

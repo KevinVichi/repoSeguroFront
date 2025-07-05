@@ -16,7 +16,7 @@ interface DeletedDocument {
 export default function DeletedFiles() {
   const [deletedFiles, setDeletedFiles] = useState<DeletedDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedFiles, setSelectedFiles] = useState<number[]>([]);
+  const [] = useState<number[]>([]);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
   useEffect(() => {

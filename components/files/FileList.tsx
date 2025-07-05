@@ -7,7 +7,6 @@ import {
   Download, 
   Trash2, 
   FileText, 
-  Share2, 
   Lock,
   AlertTriangle,
   Calendar,

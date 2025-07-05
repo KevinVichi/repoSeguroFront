@@ -1,8 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { X, ZoomIn, ZoomOut, RotateCcw, Download, AlertTriangle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import React, {  } from 'react';
 import dynamic from 'next/dynamic';
 
 // ✅ IMPORTAR PDF.JS DINÁMICAMENTE SOLO EN EL CLIENTE

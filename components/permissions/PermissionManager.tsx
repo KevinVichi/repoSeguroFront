@@ -20,7 +20,7 @@ import toast from 'react-hot-toast';
 
 const PermissionManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedUser, setSelectedUser] = useState<number | null>(null);
+  const [] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   // ✅ QUERIES PRINCIPALES
