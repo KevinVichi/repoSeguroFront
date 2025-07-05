@@ -1,45 +1,75 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
-import { useQuery} from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   User, 
   ShieldCheck,
   Mail,
   Shield
 } from 'lucide-react';
-import { authService } from '../../lib/services/authService';
 import { auditService } from '@/lib/services/auditService';
-
-
-interface ProfileFormData {
-  nombre: string;
-  correo: string;
-}
 
 const UserSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [currentPage, setCurrentPage] = useState(1);
+  const [user, setUser] = useState<any>(null);
+  const [isClient, setIsClient] = useState(false);
   const rowsPerPage = 10;
 
-  const { data: user, isLoading } = useQuery({
-    queryKey: ['profile'],
-    queryFn: authService.getProfile
-  });
+  // ✅ USAR EL MISMO PATRÓN QUE LAYOUT
+  useEffect(() => {
+    setIsClient(true);
+    
+    const loadUser = () => {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          console.log('🔍 UserSettings - Usuario cargado:', parsedUser);
+          setUser(parsedUser);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('❌ Error cargando usuario:', error);
+        setUser(null);
+      }
+    };
 
-  // ✅ VERIFICAR SI EL USUARIO ES ADMIN
+    loadUser();
+
+    // Escuchar cambios en storage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user') {
+        loadUser();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // ✅ VERIFICAR SI EL USUARIO ES ADMIN (MISMO PATRÓN QUE LAYOUT)
   const isAdmin = React.useMemo(() => {
     if (!user) return false;
-    const rol = user.Rol ;
-    return rol === 'admin';
+    
+    // ✅ USAR EL MISMO FORMATO QUE LAYOUT
+    const rol = user.Rol || user.role || user.ROL;
+    console.log('🔍 UserSettings - rol:', rol);
+    const result = rol === 'admin' || rol === 'Admin' || rol === 'ADMIN';
+    console.log('🔍 UserSettings - isAdmin:', result);
+    return result;
   }, [user]);
 
   // ✅ SOLO CARGAR AUDITORÍA SI ES ADMIN
   const { data: auditLog, isLoading: isAuditLoading } = useQuery({
     queryKey: ['auditLog'],
     queryFn: auditService.getAuditLog,
-    enabled: activeTab === 'audit' && isAdmin, // ✅ Solo si es admin Y la pestaña está activa
+    enabled: activeTab === 'audit' && isAdmin && isClient,
   });
 
   const paginatedAuditLog = auditLog
@@ -48,25 +78,29 @@ const UserSettings: React.FC = () => {
 
   const totalPages = auditLog ? Math.ceil(auditLog.length / rowsPerPage) : 1;
 
-  // ✅ ELIMINAR HOOKS DE FORMULARIO YA QUE NO LOS USAS
-  // const { register: registerProfile, handleSubmit: handleProfileSubmit, formState: { errors: profileErrors } } = useForm<ProfileFormData>({
-  //   defaultValues: {
-  //     nombre: user?.Nombre || '',
-  //     correo: user?.Correo || ''
-  //   }
-  // });
-
   // ✅ TABS DINÁMICOS SEGÚN EL ROL
   const tabs = [
     { id: 'profile', name: 'Perfil', icon: User },
-    // ✅ Solo mostrar auditoría para administradores
     ...(isAdmin ? [{ id: 'audit', name: 'Auditoría', icon: ShieldCheck }] : [])
   ];
 
-  if (isLoading) {
+  // ✅ NO RENDERIZAR HASTA QUE EL CLIENTE ESTÉ LISTO
+  if (!isClient) {
     return (
       <div className='flex items-center justify-center h-64'>
         <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600'></div>
+      </div>
+    );
+  }
+
+  // ✅ MOSTRAR LOADING SI NO HAY USUARIO
+  if (!user) {
+    return (
+      <div className='flex items-center justify-center h-64'>
+        <div className='text-center'>
+          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto'></div>
+          <p className='mt-4 text-gray-600'>Cargando perfil...</p>
+        </div>
       </div>
     );
   }
@@ -79,7 +113,7 @@ const UserSettings: React.FC = () => {
 
       {/* Tabs */}
       <div className='border-b border-gray-200 mb-6'>
-        <nav className='-mb-px flex space-x-8' role='tablist' aria-label='Configuración del usuario'>
+        <nav className='-mb-px flex space-x-8' role='tablist'>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -88,24 +122,14 @@ const UserSettings: React.FC = () => {
                 key={tab.id}
                 type='button'
                 onClick={() => setActiveTab(tab.id)}
-                role='tab'
-                aria-selected={isActive ? "true" : "false"}
-                aria-controls={`${tab.id}-panel`}
-                tabIndex={isActive ? 0 : -1}
-                id={`${tab.id}-tab`}
-                aria-label={`Pestaña ${tab.name}`}
-                title={`Cambiar a ${tab.name}`}
                 className={`${
                   isActive
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-t-md`}
+                } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center`}
               >
-                <Icon className='h-5 w-5 mr-2' aria-hidden='true' />
+                <Icon className='h-5 w-5 mr-2' />
                 {tab.name}
-                {isActive && (
-                  <span className='sr-only'>(pestaña activa)</span>
-                )}
               </button>
             );
           })}
@@ -115,18 +139,11 @@ const UserSettings: React.FC = () => {
       {/* Contenido de tabs */}
       <div className='bg-white shadow rounded-lg'>
         {activeTab === 'profile' && (
-          <div 
-            id='profile-panel' 
-            role='tabpanel' 
-            aria-labelledby='profile-tab'
-            tabIndex={0}
-            className='px-4 py-5 sm:p-6 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-          >
+          <div className='px-4 py-5 sm:p-6'>
             <h3 className='text-lg leading-6 font-medium text-gray-900 mb-4'>
               Información del Perfil
             </h3>
 
-            {/* ✅ SIMPLIFICAR SIN FORMULARIO */}
             <div className='space-y-4'>
               <div>
                 <label className='block text-sm font-medium text-gray-700 mb-2'>
@@ -134,7 +151,7 @@ const UserSettings: React.FC = () => {
                   Nombre completo
                 </label>
                 <div className='px-3 py-2 border border-gray-300 bg-gray-50 rounded-md shadow-sm text-gray-900'>
-                  {user?.Nombre || 'No especificado'}
+                  {user.Nombre || user.nombre || 'No especificado'}
                 </div>
               </div>
 
@@ -144,7 +161,7 @@ const UserSettings: React.FC = () => {
                   Correo electrónico
                 </label>
                 <div className='px-3 py-2 border border-gray-300 bg-gray-50 rounded-md shadow-sm text-gray-900'>
-                  {user?.Correo || 'No especificado'}
+                  {user.Correo || user.correo || 'No especificado'}
                 </div>
               </div>
 
@@ -159,7 +176,7 @@ const UserSettings: React.FC = () => {
                       ? 'bg-purple-100 text-purple-800' 
                       : 'bg-blue-100 text-blue-800'
                   }`}>
-                    {isAdmin ? 'Administrador' : 'Usuario'}
+                    {isAdmin ? 'Administrador' : 'Usuario'} ({user.Rol || user.role || 'Sin rol'})
                   </span>
                 </div>
               </div>
@@ -169,13 +186,7 @@ const UserSettings: React.FC = () => {
 
         {/* ✅ AUDITORÍA SOLO PARA ADMIN */}
         {activeTab === 'audit' && isAdmin && (
-          <div
-            id='audit-panel'
-            role='tabpanel'
-            aria-labelledby='audit-tab'
-            tabIndex={0}
-            className='px-4 py-5 sm:p-6 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-          >
+          <div className='px-4 py-5 sm:p-6'>
             <h3 className='text-lg leading-6 font-medium text-gray-900 mb-4'>
               Registro de Auditoría
             </h3>
@@ -211,22 +222,21 @@ const UserSettings: React.FC = () => {
                   </table>
                 </div>
                 
-                {/* Navegación de páginas */}
                 <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
                     Anterior
                   </button>
                   <span className="text-sm text-gray-700">
-                    Página <span className='font-medium'>{currentPage}</span> de <span className='font-medium'>{totalPages}</span>
+                    Página {currentPage} de {totalPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
                     Siguiente
                   </button>
