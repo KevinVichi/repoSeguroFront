@@ -1,6 +1,25 @@
 import api from './api';
 import { TwoFactorSetup } from '../../types';
-import { FieldProtection } from '../security/fieldProtection'; // ✅ AÑADIR ESTA IMPORTACIÓN
+import { FieldProtection } from '../security/fieldProtection';
+
+// ✅ DEFINIR INTERFACES ESPECÍFICAS
+interface TwoFactorVerifyResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    token: string;
+    user: {
+      id: number;
+      nombre: string;
+      correo: string;
+      role: string;
+      UsuarioID?: number;
+      Nombre?: string;
+      Correo?: string;
+      Rol?: string;
+    };
+  };
+}
 
 export const twoFactorService = {
   async setup2FA(): Promise<TwoFactorSetup> {
@@ -32,8 +51,8 @@ export const twoFactorService = {
     }
   },
 
-  // ✅ MÉTODO ORIGINAL (MANTENER PARA COMPATIBILIDAD)
-  async verify2FA(code: string): Promise<any> {
+  // ✅ MÉTODO ORIGINAL CON TIPO ESPECÍFICO
+  async verify2FA(code: string): Promise<TwoFactorVerifyResponse> {
     try {
       // ✅ USAR TOKEN TEMPORAL
       const tempToken = localStorage.getItem('temp_token');
@@ -77,7 +96,7 @@ export const twoFactorService = {
         // ✅ CONFIGURAR API PARA FUTURAS LLAMADAS
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         
-        return response.data;
+        return response.data as TwoFactorVerifyResponse;
       } else {
         throw new Error('Respuesta inválida del servidor');
       }
@@ -88,8 +107,8 @@ export const twoFactorService = {
     }
   },
 
-  // 🛡️ NUEVO: VERIFICACIÓN 2FA PROTEGIDA
-  async verify2FAProtected(code: string): Promise<any> {
+  // 🛡️ NUEVO: VERIFICACIÓN 2FA PROTEGIDA CON TIPO ESPECÍFICO
+  async verify2FAProtected(code: string): Promise<TwoFactorVerifyResponse> {
     try {
       // ✅ USAR TOKEN TEMPORAL
       const tempToken = localStorage.getItem('temp_token');
@@ -165,7 +184,7 @@ export const twoFactorService = {
         // ✅ CONFIGURAR API PARA FUTURAS LLAMADAS
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         
-        return response.data;
+        return response.data as TwoFactorVerifyResponse;
       } else {
         throw new Error('Respuesta inválida del servidor');
       }
