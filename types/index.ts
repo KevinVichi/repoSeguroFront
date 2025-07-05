@@ -56,3 +56,11 @@ export interface TwoFactorSetup {
   secret: string;
   backupCodes: string[];
 }
+
+export interface AuditLogEntry {
+  event_time: string;
+  server_principal_name: string;
+  database_name: string;
+  object_name: string;
+  statement: string | null;
+}

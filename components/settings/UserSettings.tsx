@@ -9,11 +9,21 @@ import {
   Shield
 } from 'lucide-react';
 import { auditService } from '@/lib/services/auditService';
+import { User as UserType } from '@/types'; // ✅ IMPORTAR TIPO User
+
+// ✅ DEFINIR INTERFACE PARA AUDIT LOG
+interface AuditLogEntry {
+  event_time: string;
+  server_principal_name: string;
+  database_name: string;
+  object_name: string;
+  statement: string | null;
+}
 
 const UserSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [currentPage, setCurrentPage] = useState(1);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserType | null>(null); // ✅ CORREGIR LÍNEA 16
   const [isClient, setIsClient] = useState(false);
   const rowsPerPage = 10;
 
@@ -25,7 +35,7 @@ const UserSettings: React.FC = () => {
       try {
         const userData = localStorage.getItem('user');
         if (userData) {
-          const parsedUser = JSON.parse(userData);
+          const parsedUser = JSON.parse(userData) as UserType; // ✅ TIPO ESPECÍFICO
           console.log('🔍 UserSettings - Usuario cargado:', parsedUser);
           setUser(parsedUser);
         } else {
@@ -58,15 +68,15 @@ const UserSettings: React.FC = () => {
     if (!user) return false;
     
     // ✅ USAR EL MISMO FORMATO QUE LAYOUT
-    const rol = user.Rol || user.role || user.ROL;
+    const rol = user.Rol || user.role ;
     console.log('🔍 UserSettings - rol:', rol);
-    const result = rol === 'admin' || rol === 'Admin' || rol === 'ADMIN';
+    const result = rol === 'admin';
     console.log('🔍 UserSettings - isAdmin:', result);
     return result;
   }, [user]);
 
-  // ✅ SOLO CARGAR AUDITORÍA SI ES ADMIN
-  const { data: auditLog, isLoading: isAuditLoading } = useQuery({
+  // ✅ SOLO CARGAR AUDITORÍA SI ES ADMIN - CON TIPO ESPECÍFICO
+  const { data: auditLog, isLoading: isAuditLoading } = useQuery<AuditLogEntry[]>({
     queryKey: ['auditLog'],
     queryFn: auditService.getAuditLog,
     enabled: activeTab === 'audit' && isAdmin && isClient,
@@ -209,7 +219,7 @@ const UserSettings: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className='bg-white divide-y divide-gray-200'>
-                      {paginatedAuditLog.map((row: any, idx: number) => (
+                      {paginatedAuditLog.map((row: AuditLogEntry, idx: number) => ( // ✅ CORREGIR LÍNEA 212
                         <tr key={idx} className='hover:bg-gray-50'>
                           <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>{row.event_time}</td>
                           <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>{row.server_principal_name}</td>

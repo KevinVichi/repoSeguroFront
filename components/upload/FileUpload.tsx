@@ -5,7 +5,18 @@ import { useDropzone } from 'react-dropzone';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Upload, FileText, X, AlertCircle, Lock, AlertTriangle } from 'lucide-react';
 import { fileService } from '../../lib/services/fileService';
+import { Documento } from '../../types'; // ✅ IMPORTAR DOCUMENTO
 import toast from 'react-hot-toast';
+
+
+// ✅ INTERFAZ PARA ERROR DE API
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
 
 const FileUpload: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -14,14 +25,16 @@ const FileUpload: React.FC = () => {
   const [userKey, setUserKey] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // ✅ CORREGIR MUTATION PARA USAR DOCUMENTO COMO TIPO DE RESPUESTA
   const uploadMutation = useMutation({
     mutationFn: ({ file, nombre }: { file: File; nombre?: string }) =>
       fileService.uploadFile(file, nombre),
-    onSuccess: (data: any) => {
+    onSuccess: (data: Documento) => { // ✅ USAR DOCUMENTO COMO TIPO
       queryClient.invalidateQueries({ queryKey: ['files'] });
       
-      if (data.userKey) {
-        setUserKey(data.userKey);
+      // ✅ VERIFICAR SI HAY CLAVE DE USUARIO EN LA RESPUESTA
+      if ('userKey' in data && data.userKey) {
+        setUserKey(data.userKey as string);
         toast.success('Archivo subido exitosamente');
       } else {
         toast.success('Archivo subido y cifrado exitosamente');
@@ -37,7 +50,7 @@ const FileUpload: React.FC = () => {
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (typeof error === 'object' && error !== null && 'response' in error) {
-        const apiError = error as { response?: { data?: { message?: string } } };
+        const apiError = error as ApiError;
         errorMessage = apiError.response?.data?.message ?? 'Error en la respuesta del servidor';
       }
       
