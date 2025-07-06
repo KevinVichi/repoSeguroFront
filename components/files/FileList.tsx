@@ -256,8 +256,8 @@ const FileList: React.FC = () => {
           </p>
           {/* ✅ DEBUG INFO */}
           <p className='mt-1 text-xs text-gray-500'>
-              Usuario: {user?.Nombre || 'No identificado'} | 
-              Rol: {user?.Rol || 'Sin rol'} | 
+              Usuario: {user?.nombre || 'No identificado'} | 
+              Rol: {user?.role || 'Sin rol'} | 
               Admin: {isAdmin ? 'Sí' : 'No'}
           </p>
         </div>

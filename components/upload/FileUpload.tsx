@@ -59,6 +59,8 @@ const FileUpload: React.FC = () => {
     }
   });
 
+  const MAX_SIZE = 50 * 1024 * 1024;
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
@@ -69,7 +71,7 @@ const FileUpload: React.FC = () => {
       }
       
       // Verificar tamaño máximo (50MB)
-      if (file.size > 50 * 1024 * 1024) {
+      if (file.size > MAX_SIZE) {
         toast.error('El archivo no puede ser mayor a 50MB');
         return;
       }
@@ -85,7 +87,7 @@ const FileUpload: React.FC = () => {
       'application/pdf': ['.pdf']
     },
     multiple: false,
-    maxSize: 50 * 1024 * 1024 // 50MB
+    maxSize: MAX_SIZE // 50MB
   });
 
   const handleUpload = async () => {

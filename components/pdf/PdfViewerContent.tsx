@@ -5,6 +5,7 @@ import { X, ZoomIn, ZoomOut, RotateCcw, Download, AlertTriangle } from 'lucide-r
 import toast from 'react-hot-toast';
 
 // ✅ IMPORTAR PDF.JS SOLO EN EL CLIENTE
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let pdfjsLib: any = null;
 
 interface PdfViewerContentProps {
@@ -23,6 +24,7 @@ const PdfViewerContent: React.FC<PdfViewerContentProps> = ({
   isAdmin = false
 }) => {
   // ✅ ESTADOS
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pdfDocument, setPdfDocument] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -39,45 +41,38 @@ const PdfViewerContent: React.FC<PdfViewerContentProps> = ({
   // ✅ PÁGINAS RENDERIZADAS
   const [renderedPages, setRenderedPages] = useState<Map<number, HTMLCanvasElement>>(new Map());
 
-// ✅ CARGAR PDF.JS DINÁMICAMENTE
-useEffect(() => {
-  const loadPdfJs = async () => {
-    try {
-      if (!pdfjsLib) {
-        // Importar PDF.js dinámicamente
-        pdfjsLib = await import('pdfjs-dist');
-        
-        console.log('📋 PDF.js versión:', pdfjsLib.version);
-        
-        // ✅ USAR PDFJS-DIST/BUILD/PDF.WORKER.MJS PARA VERSIONES 5.x
-        try {
-          const workerModule = await import('pdfjs-dist/build/pdf.worker.min.mjs');
-          pdfjsLib.GlobalWorkerOptions.workerSrc = workerModule.default;
-        } catch {
-          console.log('⚠️ Worker module no disponible, usando CDN');
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+  // ✅ CARGAR PDF.JS DINÁMICAMENTE
+  useEffect(() => {
+    const loadPdfJs = async () => {
+      try {
+        if (!pdfjsLib) {
+          // Importar PDF.js dinámicamente
+          pdfjsLib = await import('pdfjs-dist');
+          
+          console.log('📋 PDF.js versión:', pdfjsLib.version);
+          
+          // ✅ USAR PDFJS-DIST/BUILD/PDF.WORKER.MJS PARA VERSIONES 5.x
+          try {
+            const workerModule = await import('pdfjs-dist/build/pdf.worker.min.mjs');
+            pdfjsLib.GlobalWorkerOptions.workerSrc = workerModule.default;
+          } catch {
+            console.log('⚠️ Worker module no disponible, usando CDN');
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+          }
+          
+          console.log('✅ PDF.js cargado exitosamente');
+          console.log('🔧 Worker URL:', pdfjsLib.GlobalWorkerOptions.workerSrc);
         }
         
-        console.log('✅ PDF.js cargado exitosamente');
-        console.log('🔧 Worker URL:', pdfjsLib.GlobalWorkerOptions.workerSrc);
+        setIsLibraryLoaded(true);
+      } catch (error) {
+        console.error('❌ Error cargando PDF.js:', error);
+        setError('Error cargando la librería PDF');
       }
-      
-      setIsLibraryLoaded(true);
-    } catch (error) {
-      console.error('❌ Error cargando PDF.js:', error);
-      setError('Error cargando la librería PDF');
-    }
-  };
+    };
 
-  loadPdfJs();
-}, []);
-
-  // ✅ CARGAR PDF CUANDO LA LIBRERÍA ESTÉ LISTA
-  useEffect(() => {
-    if (isLibraryLoaded) {
-      loadPdf();
-    }
-  }, [isLibraryLoaded, documentId, userKey]);
+    loadPdfJs();
+  }, []);
 
   // ✅ FUNCIÓN PARA CARGAR PDF
   const loadPdf = async () => {
@@ -134,7 +129,16 @@ useEffect(() => {
     }
   };
 
+  // ✅ CARGAR PDF CUANDO LA LIBRERÍA ESTÉ LISTA
+  useEffect(() => {
+    if (isLibraryLoaded) {
+      loadPdf();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLibraryLoaded, documentId, userKey]);
+
   // ✅ RENDERIZAR PÁGINAS VISIBLES
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderVisiblePages = async (pdf: any, centerPage: number) => {
     const startPage = Math.max(1, centerPage - 2);
     const endPage = Math.min(pdf.numPages, centerPage + 2);
@@ -149,6 +153,7 @@ useEffect(() => {
   };
 
   // ✅ RENDERIZAR PÁGINA INDIVIDUAL
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderPage = async (pdf: any, pageNumber: number) => {
     try {
       const page = await pdf.getPage(pageNumber);
@@ -206,6 +211,7 @@ useEffect(() => {
   };
 
   // ✅ AGREGAR MARCA DE AGUA
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const addWatermark = (context: CanvasRenderingContext2D, viewport: any, pageNumber: number) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const watermarkText = `${user.nombre || user.Nombre || 'Usuario'} - Solo Vista - Página ${pageNumber}`;
@@ -227,6 +233,7 @@ useEffect(() => {
       setRenderedPages(new Map());
       renderVisiblePages(pdfDocument, currentPage);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scale, rotation]);
 
   // ✅ CONTROLES DE ZOOM
@@ -287,6 +294,7 @@ useEffect(() => {
       container.addEventListener('scroll', handleScroll);
       return () => container.removeEventListener('scroll', handleScroll);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdfDocument, currentPage, totalPages, scale]);
 
   // ✅ RENDER
