@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ZoomIn, ZoomOut, RotateCcw, Download, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { fileService } from '../../lib/services/fileService'; // ← AGREGAR ESTA LÍNEA
 
 // ✅ IMPORTAR PDF.JS SOLO EN EL CLIENTE
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -379,8 +380,19 @@ const PdfViewerContent: React.FC<PdfViewerContentProps> = ({
             
             {canDownload && (
               <button
-                onClick={() => {
-                  toast.success('Funcionalidad de descarga desde viewer - próximamente');
+                onClick={async () => {
+                  try {
+                    // ✅ USAR LA FUNCIÓN QUE YA TIENES EN fileService
+                    await fileService.downloadFileDirectly(
+                      documentId, 
+                      userKey, 
+                      `documento_${documentId}.pdf`
+                    );
+                    toast.success('✅ Descarga iniciada');
+                  } catch (error) {
+                    console.error('❌ Error en descarga:', error);
+                    toast.error('❌ Error al descargar el archivo');
+                  }
                 }}
                 className="p-2 text-green-600 hover:text-green-900 hover:bg-green-100 rounded"
                 title="Descargar PDF"
